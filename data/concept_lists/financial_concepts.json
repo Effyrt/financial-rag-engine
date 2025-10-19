@@ -1,0 +1,25 @@
+{
+  "concepts": [
+    "Duration",
+    "Convexity",
+    "Sharpe Ratio",
+    "Sortino Ratio",
+    "Black-Scholes Model",
+    "Value at Risk (VaR)",
+    "Conditional Value at Risk (CVaR)",
+    "Monte Carlo Simulation",
+    "Bond Pricing",
+    "Yield Curve",
+    "Option Greeks",
+    "Delta Hedging",
+    "Portfolio Optimization",
+    "CAPM",
+    "Efficient Frontier",
+    "Modified Duration",
+    "Macaulay Duration",
+    "Beta",
+    "Alpha",
+    "Treynor Ratio"
+  ]
+}
+

@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Data
+data/raw/*.pdf
+data/processed/*.json
+*.csv
+*.xlsx
+
+# Large PDFs and Assignment Documents
+*.pdf
+!docs/**/*.pdf  # Allow PDFs in docs if needed
+
+# Airflow
+airflow/logs/
+airflow.db
+
+# Notebooks
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cloud
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Keys
+*.json.key
+*.pem
+service-account*.json
+
+# Temporary/Planning files
+initial_project_structure.md
+

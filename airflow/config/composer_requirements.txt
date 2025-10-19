@@ -1,0 +1,31 @@
+# Core ML/AI
+openai==1.12.0
+langchain==0.1.9
+langchain-community==0.0.20
+
+# Docling - Advanced PDF Processing
+docling==2.1.3
+docling-core==2.1.1
+
+# Vector DB
+pinecone-client==3.0.0
+
+# Structured Output
+instructor==0.4.0
+pydantic==2.5.0
+
+# Data Processing
+pandas==2.0.3
+numpy==1.24.3
+
+# Cloud
+google-cloud-storage==2.10.0
+
+# Database
+psycopg2-binary==2.9.9
+
+# Utilities
+python-dotenv==1.0.0
+requests>=2.31.0
+wikipediaapi>=0.6.0
+
