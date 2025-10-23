@@ -7,7 +7,8 @@ import time
 import logging
 from typing import List, Optional, Tuple, Dict, Any
 from openai import OpenAI
-from pinecone import Pinecone
+import chromadb
+from chromadb.config import Settings
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from pathlib import Path
@@ -29,11 +30,11 @@ class RAGService:
     """Service for RAG-based concept note generation."""
     
     def __init__(self):
-        """Initialize RAG service with OpenAI and Pinecone clients."""
+        """Initialize RAG service with OpenAI and ChromaDB clients."""
         # Initialize clients only if API keys are available
         self.openai_client = None
-        self.pinecone_client = None
-        self.index = None
+        self.chroma_client = None
+        self.collection = None
         self.embedding_model = "text-embedding-3-large"
         self.embedding_dimension = 3072
         
@@ -52,28 +53,32 @@ class RAGService:
                 except Exception as e2:
                     logger.warning(f"Failed to initialize OpenAI client: {e2}")
         
-        # Try to initialize Pinecone client
-        pinecone_key = os.getenv("PINECONE_API_KEY")
-        if pinecone_key:
-            try:
-                self.pinecone_client = Pinecone(api_key=pinecone_key)
-                self.index = self.pinecone_client.Index("financial-concepts")
-                logger.info("Pinecone client initialized")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Pinecone client: {e}")
+        # Try to initialize ChromaDB client
+        try:
+            self.chroma_client = chromadb.PersistentClient(
+                path="./data/chroma_db",
+                settings=Settings(anonymized_telemetry=False)
+            )
+            self.collection = self.chroma_client.get_or_create_collection(
+                name="financial-concepts",
+                metadata={"description": "Financial concepts and documentation"}
+            )
+            logger.info("ChromaDB client initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize ChromaDB client: {e}")
         
         logger.info("RAG Service initialized (some clients may be unavailable)")
     
-    def check_pinecone_health(self) -> bool:
-        """Check if Pinecone is accessible."""
-        if not self.index:
-            logger.warning("Pinecone not initialized")
+    def check_chromadb_health(self) -> bool:
+        """Check if ChromaDB is accessible."""
+        if not self.collection:
+            logger.warning("ChromaDB not initialized")
             return False
         try:
-            stats = self.index.describe_index_stats()
+            self.collection.count()
             return True
         except Exception as e:
-            logger.error(f"Pinecone health check failed: {e}")
+            logger.error(f"ChromaDB health check failed: {e}")
             return False
     
     def generate_embedding(self, text: str) -> List[float]:
@@ -97,32 +102,33 @@ class RAGService:
         top_k: int = 5,
         namespace: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Retrieve relevant chunks from Pinecone."""
-        if not self.index:
-            logger.warning("Pinecone not initialized, returning empty results")
+        """Retrieve relevant chunks from ChromaDB."""
+        if not self.collection:
+            logger.warning("ChromaDB not initialized, returning empty results")
             return []
         try:
-            # Generate query embedding
-            query_embedding = self.generate_embedding(query)
-            
-            # Query Pinecone
-            results = self.index.query(
-                vector=query_embedding,
-                top_k=top_k,
-                include_metadata=True,
-                namespace=namespace
+            # Query ChromaDB
+            results = self.collection.query(
+                query_texts=[query],
+                n_results=top_k,
+                include=["metadatas", "distances"]
             )
             
             # Extract chunks
             chunks = []
-            for match in results.matches:
-                chunks.append({
-                    "text": match.metadata.get("chunk_text", ""),
-                    "score": match.score,
-                    "page": match.metadata.get("page_number"),
-                    "source": match.metadata.get("source_file"),
-                    "namespace": match.metadata.get("namespace")
-                })
+            if results["metadatas"] and results["metadatas"][0]:
+                for i, metadata in enumerate(results["metadatas"][0]):
+                    # Convert distance to similarity score (ChromaDB uses distance, lower is better)
+                    distance = results["distances"][0][i] if results["distances"] else 0
+                    score = 1 - distance  # Convert distance to similarity
+                    
+                    chunks.append({
+                        "text": metadata.get("chunk_text", ""),
+                        "score": score,
+                        "page": metadata.get("page_number"),
+                        "source": metadata.get("source_file"),
+                        "namespace": metadata.get("namespace")
+                    })
             
             logger.info(f"Retrieved {len(chunks)} chunks for query: {query}")
             return chunks
@@ -346,20 +352,23 @@ Be precise and use information only from the provided context."""
         try:
             stats = {
                 "openai_available": self.openai_client is not None,
-                "pinecone_available": self.index is not None,
-                "status": "healthy" if (self.openai_client or self.index) else "degraded"
+                "chromadb_available": self.collection is not None,
+                "status": "healthy" if (self.openai_client or self.collection) else "degraded"
             }
             
-            if self.index:
-                # Pinecone stats
-                pinecone_stats = self.index.describe_index_stats()
-                stats["pinecone"] = {
-                    "total_vectors": pinecone_stats.total_vector_count,
-                    "namespaces": list(pinecone_stats.namespaces.keys()) if pinecone_stats.namespaces else [],
-                    "dimension": self.embedding_dimension
-                }
+            if self.collection:
+                # ChromaDB stats
+                try:
+                    count = self.collection.count()
+                    stats["chromadb"] = {
+                        "total_vectors": count,
+                        "collection_name": self.collection.name,
+                        "dimension": self.embedding_dimension
+                    }
+                except Exception as e:
+                    stats["chromadb"] = {"error": f"failed_to_get_stats: {e}"}
             else:
-                stats["pinecone"] = {"error": "not_initialized"}
+                stats["chromadb"] = {"error": "not_initialized"}
             
             return stats
         except Exception as e:

@@ -7,7 +7,7 @@ Production-grade RAG system for automated financial concept note generation usin
 Automated system that generates standardized concept notes for financial topics by:
 - Parsing Financial Toolbox User's Guide (fintbx.pdf) with Docling
 - Creating intelligent chunks with LangChain
-- Storing embeddings in Pinecone (3072-dim vectors)
+- Storing embeddings in ChromaDB (3072-dim vectors)
 - Using Retrieval-Augmented Generation for concept synthesis
 - Falling back to Wikipedia when concept not found in PDF
 
@@ -18,7 +18,7 @@ Cloud Infrastructure (GCP)
 ├── Cloud Composer (Airflow)
 │   ├── fintbx_ingest_dag (PDF → Chunks → Embeddings)
 │   └── concept_seed_dag (Pre-generate notes)
-├── Pinecone (Vector Store)
+├── ChromaDB (Vector Store)
 ├── Cloud SQL (PostgreSQL - Cached notes)
 ├── Cloud Run (FastAPI Service)
 └── Cloud Run (Streamlit UI)
@@ -31,7 +31,7 @@ Cloud Infrastructure (GCP)
 | PDF Parser | Docling |
 | Chunking | LangChain |
 | Embeddings | OpenAI text-embedding-3-large |
-| Vector DB | Pinecone |
+| Vector DB | ChromaDB |
 | Orchestration | Cloud Composer (Airflow) |
 | Backend | FastAPI |
 | Frontend | Streamlit |
@@ -43,7 +43,7 @@ Cloud Infrastructure (GCP)
 
 - [ ] **Phase 0:** Infrastructure Setup (Week 1)
   - [ ] GCP Project + Storage
-  - [ ] Pinecone Vector DB
+  - [ ] ChromaDB Vector DB
   - [ ] Cloud Composer (Airflow)
   - [ ] Docling Integration Test
   
@@ -94,7 +94,7 @@ pip install -r requirements.txt
 cd setup
 # Follow guides in order:
 # 1. 01_gcp_setup.md
-# 2. 02_pinecone_setup.md
+# 2. 02_chromadb_setup.md
 # 3. 03_composer_setup.md
 # 4. 04_docling_test.md
 ```
