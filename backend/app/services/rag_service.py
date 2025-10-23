@@ -11,6 +11,7 @@ from pinecone import Pinecone
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from pathlib import Path
+import instructor
 
 # Load environment variables from project root
 # Go up 4 levels: rag_service.py -> services -> app -> backend -> project_root
@@ -36,14 +37,20 @@ class RAGService:
         self.embedding_model = "text-embedding-3-large"
         self.embedding_dimension = 3072
         
-        # Try to initialize OpenAI client
+        # Try to initialize OpenAI client with instructor
         openai_key = os.getenv("OPENAI_API_KEY")
         if openai_key:
             try:
-                self.openai_client = OpenAI(api_key=openai_key)
-                logger.info("OpenAI client initialized")
+                self.openai_client = instructor.from_openai(OpenAI(api_key=openai_key))
+                logger.info("OpenAI client with instructor initialized")
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenAI client: {e}")
+                logger.warning(f"Failed to initialize OpenAI client with instructor: {e}")
+                # Fallback to regular OpenAI client
+                try:
+                    self.openai_client = OpenAI(api_key=openai_key)
+                    logger.info("OpenAI client initialized (fallback)")
+                except Exception as e2:
+                    logger.warning(f"Failed to initialize OpenAI client: {e2}")
         
         # Try to initialize Pinecone client
         pinecone_key = os.getenv("PINECONE_API_KEY")
@@ -179,45 +186,61 @@ Generate a structured concept note with:
 4. Key use cases (list)
 5. References to source pages
 
-Format your response as JSON with these fields:
-- title: "{concept}"
-- definition: (2-3 sentences)
-- formula: (LaTeX format if applicable, or null)
-- example: (1-2 sentences)
-- use_cases: (array of strings)
-- references: (array of page references)
-
 Be precise and use information only from the provided context."""
 
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a financial education expert. Generate structured concept notes from textbook content."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                response_format={"type": "json_object"}
-            )
-            
-            # Parse response
-            import json
-            concept_data = json.loads(response.choices[0].message.content)
-            
-            # Create ConceptNote
-            concept_note = ConceptNote(
-                title=concept_data.get("title", concept),
-                definition=concept_data.get("definition", ""),
-                formula=concept_data.get("formula"),
-                example=concept_data.get("example"),
-                use_cases=concept_data.get("use_cases", []),
-                references=concept_data.get("references", []),
-                source="PDF",
-                metadata={
+            # Use instructor for structured output
+            try:
+                concept_note = self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a financial education expert. Generate structured concept notes from textbook content."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    response_model=ConceptNote
+                )
+                
+                # Update the concept note with additional metadata
+                concept_note.title = concept
+                concept_note.source = "PDF"
+                concept_note.metadata = {
                     "chunks_used": len(chunks),
                     "top_score": chunks[0]["score"] if chunks else 0,
                     "namespaces": list(set(c.get("namespace") for c in chunks if c.get("namespace")))
                 }
-            )
+                
+            except Exception as e:
+                logger.warning(f"Instructor failed, falling back to manual JSON parsing: {e}")
+                # Fallback to manual JSON parsing
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a financial education expert. Generate structured concept notes from textbook content."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Parse response
+                import json
+                concept_data = json.loads(response.choices[0].message.content)
+                
+                # Create ConceptNote
+                concept_note = ConceptNote(
+                    title=concept_data.get("title", concept),
+                    definition=concept_data.get("definition", ""),
+                    formula=concept_data.get("formula"),
+                    example=concept_data.get("example"),
+                    use_cases=concept_data.get("use_cases", []),
+                    references=concept_data.get("references", []),
+                    source="PDF",
+                    metadata={
+                        "chunks_used": len(chunks),
+                        "top_score": chunks[0]["score"] if chunks else 0,
+                        "namespaces": list(set(c.get("namespace") for c in chunks if c.get("namespace")))
+                    }
+                )
             
             retrieval_time = (time.time() - start_time) * 1000
             logger.info(f"Generated concept note for '{concept}' in {retrieval_time:.2f}ms")

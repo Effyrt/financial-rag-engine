@@ -36,7 +36,7 @@ Cloud Infrastructure (GCP)
 | Backend | FastAPI |
 | Frontend | Streamlit |
 | Database | PostgreSQL |
-| Structured Output | instructor + Pydantic |
+| Structured Output | instructor + Pydantic (implemented) |
 | Cloud | GCP |
 
 ## 📋 Setup Progress
