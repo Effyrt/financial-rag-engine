@@ -18,6 +18,8 @@ ENV/
 # Data
 data/raw/*.pdf
 data/processed/*.json
+data/processed/*.txt
+data/chroma_db/
 *.csv
 *.xlsx
 
@@ -27,7 +29,9 @@ data/processed/*.json
 
 # Airflow
 airflow/logs/
-airflow.db
+airflow/airflow.db
+airflow/airflow.cfg
+airflow/webserver_config.py
 
 # Notebooks
 .ipynb_checkpoints/
@@ -54,4 +58,18 @@ service-account*.json
 
 # Temporary/Planning files
 initial_project_structure.md
+TESTING_GUIDE.md
+ROADMAP.md
+LOCAL_TEST_GUIDE.md
+
+# Test files
+test_*.py
+*_test.py
+test_*.sh
+
+# Runtime files
+*.pid
+*.log
+backend/test.db
+test_query_result.json
 
