@@ -1,0 +1,249 @@
+{
+  "evaluation_date": "2025-10-24T05:06:50.588061",
+  "services_tested": {
+    "fastapi": "https://financial-rag-api-387661610307.us-central1.run.app",
+    "streamlit": "https://financial-rag-frontend-387661610307.us-central1.run.app"
+  },
+  "latency_analysis": {
+    "first_query": [
+      {
+        "concept": "Credit Default Swap",
+        "status": "success",
+        "latency": 182.79289555549622,
+        "cached": false,
+        "source": "none",
+        "generation_time": 0.0,
+        "has_definition": true,
+        "num_key_points": 1,
+        "num_examples": 0,
+        "num_references": 0,
+        "timestamp": "2025-10-24T04:18:18.643824"
+      },
+      {
+        "concept": "Value at Risk",
+        "status": "success",
+        "latency": 172.39253497123718,
+        "cached": false,
+        "source": "none",
+        "generation_time": 0.0,
+        "has_definition": true,
+        "num_key_points": 1,
+        "num_examples": 0,
+        "num_references": 0,
+        "timestamp": "2025-10-24T04:24:01.345407"
+      },
+      {
+        "concept": "Black-Scholes Model",
+        "status": "success",
+        "latency": 172.24158668518066,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.06015,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:29:46.709327"
+      },
+      {
+        "concept": "Portfolio Theory",
+        "status": "success",
+        "latency": 169.1281714439392,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.067205,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:35:29.011634"
+      },
+      {
+        "concept": "Capital Asset Pricing Model",
+        "status": "success",
+        "latency": 169.12619495391846,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.066484,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:41:08.312759"
+      }
+    ],
+    "cached_query": [
+      {
+        "concept": "Credit Default Swap",
+        "status": "success",
+        "latency": 169.3037166595459,
+        "cached": false,
+        "source": "none",
+        "generation_time": 0.0,
+        "has_definition": true,
+        "num_key_points": 1,
+        "num_examples": 0,
+        "num_references": 0,
+        "timestamp": "2025-10-24T04:21:08.950702"
+      },
+      {
+        "concept": "Value at Risk",
+        "status": "success",
+        "latency": 172.1171042919159,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.058715,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:26:54.465743"
+      },
+      {
+        "concept": "Black-Scholes Model",
+        "status": "success",
+        "latency": 172.16725516319275,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.117395,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:32:39.880454"
+      },
+      {
+        "concept": "Portfolio Theory",
+        "status": "success",
+        "latency": 169.17023491859436,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.118651,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:38:19.184564"
+      },
+      {
+        "concept": "Capital Asset Pricing Model",
+        "status": "success",
+        "latency": 172.3848478794098,
+        "cached": true,
+        "source": "chromadb",
+        "generation_time": 0.100352,
+        "has_definition": true,
+        "num_key_points": 3,
+        "num_examples": 1,
+        "num_references": 1,
+        "timestamp": "2025-10-24T04:44:01.700263"
+      }
+    ],
+    "average_first_query_latency": 173.13627672195435,
+    "average_cached_query_latency": 171.02863178253173
+  },
+  "quality_metrics": {
+    "results": [
+      {
+        "concept": "Credit Default Swap",
+        "accuracy": 1.0,
+        "completeness": 1.0,
+        "citation_fidelity": 1.0,
+        "details": {
+          "has_definition": true,
+          "key_points": 3,
+          "examples": 1,
+          "references": 1
+        }
+      },
+      {
+        "concept": "Value at Risk",
+        "accuracy": 1.0,
+        "completeness": 1.0,
+        "citation_fidelity": 1.0,
+        "details": {
+          "has_definition": true,
+          "key_points": 3,
+          "examples": 1,
+          "references": 1
+        }
+      },
+      {
+        "concept": "Black-Scholes Model",
+        "accuracy": 1.0,
+        "completeness": 1.0,
+        "citation_fidelity": 1.0,
+        "details": {
+          "has_definition": true,
+          "key_points": 3,
+          "examples": 1,
+          "references": 1
+        }
+      },
+      {
+        "concept": "Portfolio Theory",
+        "accuracy": 1.0,
+        "completeness": 1.0,
+        "citation_fidelity": 1.0,
+        "details": {
+          "has_definition": true,
+          "key_points": 3,
+          "examples": 1,
+          "references": 1
+        }
+      },
+      {
+        "concept": "Capital Asset Pricing Model",
+        "accuracy": 1.0,
+        "completeness": 1.0,
+        "citation_fidelity": 1.0,
+        "details": {
+          "has_definition": true,
+          "key_points": 3,
+          "examples": 1,
+          "references": 1
+        }
+      }
+    ],
+    "averages": {
+      "accuracy": 1.0,
+      "completeness": 1.0,
+      "citation_fidelity": 1.0
+    }
+  },
+  "cost_estimation": {
+    "model": "text-embedding-3-large",
+    "total_chunks": 342,
+    "total_tokens": 171000,
+    "total_cost_usd": 0.022230000000000003,
+    "cost_per_chunk": 6.500000000000001e-05
+  },
+  "retrieval_analysis": {
+    "results": [
+      {
+        "concept": "Credit Default Swap",
+        "retrieval_latency": 169.21239256858826,
+        "generation_time": 0.097845,
+        "total_time": 169.21239256858826
+      },
+      {
+        "concept": "Value at Risk",
+        "retrieval_latency": 169.1185281276703,
+        "generation_time": 0.062832,
+        "total_time": 169.1185281276703
+      },
+      {
+        "concept": "Black-Scholes Model",
+        "retrieval_latency": 169.42096304893494,
+        "generation_time": 0.058917,
+        "total_time": 169.42096304893494
+      }
+    ],
+    "average_retrieval_latency": 169.25062791506448
+  },
+  "summary": {
+    "total_tests": 10,
+    "successful_queries": 5,
+    "system_status": "operational"
+  }
+}

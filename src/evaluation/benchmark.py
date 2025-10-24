@@ -1,7 +1,5 @@
 """
-Lab 5 - Evaluation & Benchmarking
 Evaluate concept note quality and system performance
-Run: python benchmark.py
 """
 
 import requests
@@ -297,14 +295,20 @@ class Benchmark:
             }
         }
         
-        # Save report
-        with open("evaluation_report.json", "w") as f:
+        # Create output directory if it doesn't exist
+        from pathlib import Path
+        output_dir = Path("../../data/evaluation")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save report to data/evaluation directory
+        output_file = output_dir / "evaluation_report.json"
+        with open(output_file, "w") as f:
             json.dump(report, f, indent=2)
         
         print("\n" + "=" * 60)
         print("✅ EVALUATION COMPLETE")
         print("=" * 60)
-        print(f"📊 Report saved to: evaluation_report.json")
+        print(f"📊 Report saved to: {output_file}")
         print(f"📈 Total Tests: {report['summary']['total_tests']}")
         print(f"✅ Successful Queries: {report['summary']['successful_queries']}")
         print(f"💰 Estimated Cost: ${cost_results['total_cost_usd']:.4f}")
