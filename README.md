@@ -1,6 +1,80 @@
 # Financial RAG Engine
 
-## 🎯 Chosen Strategy: **Medium Chunks (1000 chars, 200 overlap)**
+Cloud-deployed Retrieval-Augmented Generation system for financial concept queries, built with Airflow, FastAPI, and Streamlit on GCP.
+
+## 🌐 Live Deployment
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Streamlit Frontend** | https://financial-rag-frontend-387661610307.us-central1.run.app | User interface |
+| **FastAPI Backend** | https://financial-rag-api-387661610307.us-central1.run.app/docs | REST API |
+| **Cloud Storage** | gs://financial-rag-artifacts/ | Data artifacts |
+| **Airflow** | Cloud Composer | Workflow orchestration |
+
+## 🏗️ Architecture
+
+```
+User → Streamlit → FastAPI → ChromaDB (Vector Store)
+                       ↓
+                  PostgreSQL (Cache)
+                       ↓
+                  Wikipedia (Fallback)
+       
+Airflow DAGs → Automated Updates
+```
+
+## 📦 Components
+
+### PDF Processing Pipeline
+**Automated 6-step pipeline** (`pipeline_parse_chunck_vectorstore.py`):
+1. Parse PDF with Docling
+2. Convert to chunks (31 pages)
+3. Experiment with 4 chunking strategies
+4. Build vectorstore with optimal strategy
+5. Evaluate retrieval performance
+6. Upload to GCS
+
+**Best Strategy:** Medium Chunks (1000 chars, 200 overlap)
+- Precision@3: 0.933
+- MRR: 1.0
+- Total: 122 chunks
+
+### Airflow DAGs (Cloud Composer)
+- `fintbx_ingest_dag`: Weekly PDF processing
+- `concept_seed_dag`: On-demand concept seeding
+
+### FastAPI Backend (Cloud Run)
+**Endpoints:**
+- `POST /query`: Query concepts with automatic caching
+- `POST /seed`: Batch pre-generate notes
+
+**Features:**
+- ChromaDB vector search
+- Wikipedia fallback
+- PostgreSQL caching
+- Structured JSON responses
+
+### Streamlit Frontend (Cloud Run)
+**Features:**
+- Concept query interface
+- Cache status indicators
+- Source tracking (textbook vs Wikipedia)
+- Search history
+- PDF section references
+
+### Evaluation & Benchmarking
+**Quality Metrics:**
+- Accuracy: 100%
+- Completeness: 100%
+- Citation Fidelity: 100%
+
+**Performance:**
+- Embedding Cost: $0.0222 (342 chunks)
+- Retrieval Success: 100%
+- Model: text-embedding-3-large (3072 dims)
+
+## 📊 Key Results
+## 🎯 Chosen Strategy: **Medium Chunks**
 
 ---
 
@@ -155,15 +229,58 @@
 ```
 **Verdict**: Medium chosen for predictability; Paragraph is valid alternative
 
----
+### Chunking Strategy Comparison
 
-## 🎯 Final Recommendation
+| Strategy | Size | Chunks | Precision@3 | MRR | Selected |
+|----------|------|--------|-------------|-----|----------|
+| Small | 500 | 225 | 0.867 | 1.0 | ❌ |
+| **Medium** | **1000** | **118** | **0.933** | **1.0** | **✅** |
+| Large | 2000 | 65 | 0.933 | 0.9 | ❌ |
+| Paragraph | 1000 | 116 | 0.867 | 1.0 | ❌ |
 
-**Use Medium Chunks (1000 chars, 200 overlap)** because:
+**Selection Rationale:** Strategy 2 achieves highest precision (0.933) with perfect MRR (1.0), providing optimal balance between accuracy and context preservation.
 
-1. **Empirically best**: Highest Precision (93.3%) and Recall (1.40)
-2. **Perfect ranking**: MRR = 1.0 (most relevant always first)
-3. **Production-ready**: Fast (0.56s), predictable, scalable
-4. **Context preservation**: ~791 chars maintains semantic coherence
-5. **Industry standard**: Widely used in production RAG systems
+## 📁 Project Structure
+
+```
+financial-rag-engine/
+├── pipeline_parse_chunck_vectorstore.py  # Automated pipeline
+├── src/
+│   ├── parser/              # PDF parsing
+│   ├── embeddings/          # Vectorstore building
+│   └── experiments/         # Chunking & evaluation
+├── dags/                    # Airflow DAGs
+├── fastapi_rag_service/     # Backend API
+├── streamlit-app/           # Frontend UI
+├── data/
+│   ├── parsed/              # Processing results
+│   ├── experiments/         # Experiment results
+│   ├── evaluation/          # Benchmark results
+│   └── vectorstore/         # ChromaDB database
+└── upload_to_gcs.py         # GCS upload utility
+```
+
+## 🔧 Prerequisites
+
+```bash
+
+# Environment variables (.env)
+OPENAI_API_KEY=your-key
+GOOGLE_APPLICATION_CREDENTIALS=.credentials/gcp-key.json
+
+
+```
+
+## 📈 Technologies
+
+- **PDF Parsing**: Docling
+- **Chunking**: LangChain RecursiveCharacterTextSplitter
+- **Embeddings**: OpenAI text-embedding-3-large 
+- **Vector Store**: ChromaDB
+- **Orchestration**: Apache Airflow (Cloud Composer)
+- **Backend**: FastAPI
+- **Frontend**: Streamlit
+- **Cloud**: GCP (Cloud Run, Cloud Composer, Cloud Storage)
+
+
 
