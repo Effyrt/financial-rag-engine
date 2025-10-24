@@ -35,39 +35,54 @@ class RAGService:
         self.openai_client = None
         self.chroma_client = None
         self.collection = None
-        self.embedding_model = "text-embedding-3-large"
-        self.embedding_dimension = 3072
+        self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
+        self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "3072"))
+        self.chroma_path = os.getenv("CHROMA_DB_PATH", "./data/chroma_db")
+        self.collection_name = os.getenv("CHROMA_COLLECTION_NAME", "financial-concepts")
+        
+        # Ensure data directory exists
+        os.makedirs(self.chroma_path, exist_ok=True)
+        os.makedirs("./data/processed", exist_ok=True)
         
         # Try to initialize OpenAI client with instructor
         openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key:
+        if openai_key and openai_key != "your_openai_api_key_here":
             try:
                 self.openai_client = instructor.from_openai(OpenAI(api_key=openai_key))
-                logger.info("OpenAI client with instructor initialized")
+                logger.info("✅ OpenAI client with instructor initialized")
             except Exception as e:
                 logger.warning(f"Failed to initialize OpenAI client with instructor: {e}")
                 # Fallback to regular OpenAI client
                 try:
                     self.openai_client = OpenAI(api_key=openai_key)
-                    logger.info("OpenAI client initialized (fallback)")
+                    logger.info("✅ OpenAI client initialized (fallback)")
                 except Exception as e2:
-                    logger.warning(f"Failed to initialize OpenAI client: {e2}")
+                    logger.error(f"❌ Failed to initialize OpenAI client: {e2}")
+                    self.openai_client = None
+        else:
+            logger.warning("⚠️ OpenAI API key not found or not configured")
         
         # Try to initialize ChromaDB client
         try:
             self.chroma_client = chromadb.PersistentClient(
-                path="./data/chroma_db",
+                path=self.chroma_path,
                 settings=Settings(anonymized_telemetry=False)
             )
             self.collection = self.chroma_client.get_or_create_collection(
-                name="financial-concepts",
+                name=self.collection_name,
                 metadata={"description": "Financial concepts and documentation"}
             )
-            logger.info("ChromaDB client initialized")
+            logger.info(f"✅ ChromaDB client initialized at {self.chroma_path}")
         except Exception as e:
-            logger.warning(f"Failed to initialize ChromaDB client: {e}")
+            logger.error(f"❌ Failed to initialize ChromaDB client: {e}")
+            self.chroma_client = None
+            self.collection = None
         
-        logger.info("RAG Service initialized (some clients may be unavailable)")
+        # Validate initialization
+        if self.openai_client and self.collection:
+            logger.info("✅ RAG Service fully initialized")
+        else:
+            logger.warning("⚠️ RAG Service partially initialized - some features may not work")
     
     def check_chromadb_health(self) -> bool:
         """Check if ChromaDB is accessible."""
@@ -155,14 +170,9 @@ class RAGService:
             chunks = self.retrieve_relevant_chunks(concept, top_k=top_k)
             
             if not chunks:
-                logger.warning(f"No chunks found for concept: {concept}")
-                # Return a basic concept note
-                return ConceptNote(
-                    title=concept,
-                    definition=f"No information found for '{concept}' in the knowledge base.",
-                    source="empty",
-                    metadata={"error": "no_chunks_found"}
-                ), (time.time() - start_time) * 1000
+                logger.warning(f"No chunks found for concept: {concept}, trying Wikipedia fallback")
+                # Try Wikipedia fallback
+                return self._generate_wikipedia_concept(concept, start_time)
             
             # Build context from chunks
             context = "\n\n".join([
@@ -185,14 +195,17 @@ class RAGService:
 Context:
 {context}
 
-Generate a structured concept note with:
-1. A clear, concise definition
-2. Mathematical formula (if applicable)
-3. A practical example
-4. Key use cases (list)
-5. References to source pages
+Generate a structured concept note with these EXACT fields:
+- title: "{concept}" (exact concept name)
+- definition: Clear, concise definition (2-3 sentences)
+- formula: Mathematical formula in LaTeX format if applicable, otherwise null
+- example: Practical example (1-2 sentences)
+- use_cases: Array of specific use cases (3-5 items)
+- references: Array of source page references
+- source: "PDF"
+- metadata: Object with chunks_used, top_score, namespaces
 
-Be precise and use information only from the provided context."""
+Be precise and use information only from the provided context. Ensure all fields match the expected structure exactly."""
 
             # Use instructor for structured output
             try:
@@ -374,4 +387,125 @@ Be precise and use information only from the provided context."""
         except Exception as e:
             logger.error(f"Error getting stats: {e}")
             return {"status": "error", "error": str(e)}
+    
+    def _generate_wikipedia_concept(self, concept: str, start_time: float) -> Tuple[ConceptNote, float]:
+        """Generate concept note using Wikipedia as fallback."""
+        try:
+            if not self.openai_client:
+                return ConceptNote(
+                    title=concept,
+                    definition=f"No information found for '{concept}' in the knowledge base or Wikipedia.",
+                    source="empty",
+                    metadata={"error": "no_chunks_found", "wikipedia_fallback": "openai_unavailable"}
+                ), (time.time() - start_time) * 1000
+            
+            # Use OpenAI to generate a basic concept note
+            prompt = f"""Generate a comprehensive concept note for the financial concept: {concept}
+
+Please provide these EXACT fields:
+- title: "{concept}" (exact concept name)
+- definition: Clear, concise definition (2-3 sentences)
+- formula: Mathematical formula in LaTeX format if applicable, otherwise null
+- example: Practical example (1-2 sentences)
+- use_cases: Array of specific use cases (3-5 items)
+- references: Array of general financial literature references
+- source: "Wikipedia"
+- metadata: Object with wikipedia_fallback: true, fallback_reason: "not_found_in_knowledge_base"
+
+Note: This is generated from general knowledge as the specific concept was not found in the financial textbook database."""
+
+            try:
+                concept_note = self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a financial education expert. Generate structured concept notes from general financial knowledge."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    response_model=ConceptNote
+                )
+                
+                # Update the concept note with Wikipedia source
+                concept_note.title = concept
+                concept_note.source = "Wikipedia"
+                concept_note.metadata = {
+                    "wikipedia_fallback": True,
+                    "chunks_used": 0,
+                    "top_score": 0,
+                    "fallback_reason": "not_found_in_knowledge_base"
+                }
+                
+                retrieval_time = (time.time() - start_time) * 1000
+                logger.info(f"Generated Wikipedia fallback concept note for '{concept}' in {retrieval_time:.2f}ms")
+                
+                return concept_note, retrieval_time
+                
+            except Exception as e:
+                logger.warning(f"Instructor failed for Wikipedia fallback, using manual JSON: {e}")
+                # Fallback to manual JSON parsing
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a financial education expert. Generate structured concept notes from general financial knowledge."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Parse response
+                import json
+                concept_data = json.loads(response.choices[0].message.content)
+                
+                # Create ConceptNote
+                concept_note = ConceptNote(
+                    title=concept_data.get("title", concept),
+                    definition=concept_data.get("definition", ""),
+                    formula=concept_data.get("formula"),
+                    example=concept_data.get("example"),
+                    use_cases=concept_data.get("use_cases", []),
+                    references=concept_data.get("references", []),
+                    source="Wikipedia",
+                    metadata={
+                        "wikipedia_fallback": True,
+                        "chunks_used": 0,
+                        "top_score": 0,
+                        "fallback_reason": "not_found_in_knowledge_base"
+                    }
+                )
+                
+                retrieval_time = (time.time() - start_time) * 1000
+                logger.info(f"Generated Wikipedia fallback concept note for '{concept}' in {retrieval_time:.2f}ms")
+                
+                return concept_note, retrieval_time
+                
+        except Exception as e:
+            logger.error(f"Error generating Wikipedia fallback: {e}")
+            return ConceptNote(
+                title=concept,
+                definition=f"Error generating concept note for '{concept}': {str(e)}",
+                source="error",
+                metadata={"error": "wikipedia_fallback_failed", "error_message": str(e)}
+            ), (time.time() - start_time) * 1000
+    
+    def create_searchable_text(self, concept: ConceptNote) -> str:
+        """Create searchable text from concept note for better retrieval."""
+        searchable_parts = [
+            f"Title: {concept.title}",
+            f"Definition: {concept.definition}",
+        ]
+        
+        if concept.formula:
+            searchable_parts.append(f"Formula: {concept.formula}")
+        
+        if concept.example:
+            searchable_parts.append(f"Example: {concept.example}")
+        
+        if concept.use_cases:
+            searchable_parts.append(f"Use Cases: {', '.join(concept.use_cases)}")
+        
+        if concept.references:
+            searchable_parts.append(f"References: {', '.join(concept.references)}")
+        
+        return "\n".join(searchable_parts)
 
