@@ -1,0 +1,115 @@
+# Cloud Scheduler Configuration for Financial RAG Engine
+# Parameterized schedules for weekly refresh and on-demand updates
+
+schedules:
+  # Weekly PDF Ingestion - Every Sunday at 2 AM UTC
+  fintbx_weekly_ingest:
+    name: "fintbx-weekly-ingest"
+    description: "Weekly PDF ingestion and vector store update"
+    schedule: "0 2 * * 0"  # Every Sunday at 2 AM UTC
+    timezone: "UTC"
+    job_type: "fintbx_ingest"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      pdf_path: "data/raw/fintbx.pdf"
+      pages: 500  # Process 500 pages weekly
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+    
+  # Daily Concept Seeding - Every day at 3 AM UTC
+  concept_daily_seed:
+    name: "concept-daily-seed"
+    description: "Daily concept seeding and embedding updates"
+    schedule: "0 3 * * *"  # Every day at 3 AM UTC
+    timezone: "UTC"
+    job_type: "concept_seed"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      mode: "update"  # Update existing concepts
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+    
+  # Monthly Full Refresh - First Sunday of each month at 1 AM UTC
+  monthly_full_refresh:
+    name: "monthly-full-refresh"
+    description: "Monthly full PDF processing and concept regeneration"
+    schedule: "0 1 1-7 * 0"  # First Sunday of month at 1 AM UTC
+    timezone: "UTC"
+    job_type: "fintbx_ingest"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      pdf_path: "data/raw/fintbx.pdf"
+      pages: null  # Process all pages
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+
+# On-demand job configurations
+on_demand:
+  # Full PDF processing
+  full_pdf_ingest:
+    job_type: "fintbx_ingest"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      pdf_path: "data/raw/fintbx.pdf"
+      pages: null
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+  
+  # Specific page range processing
+  page_range_ingest:
+    job_type: "fintbx_ingest"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      pdf_path: "data/raw/fintbx.pdf"
+      start_page: 1
+      end_page: 100
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+  
+  # Generate new concepts
+  generate_concepts:
+    job_type: "concept_seed"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      mode: "generate"
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+  
+  # Update existing concepts
+  update_concepts:
+    job_type: "concept_seed"
+    parameters:
+      project_id: "${PROJECT_ID}"
+      mode: "update"
+      concept_file_path: "concept_artifacts/latest/concepts.json"
+      use_chromadb: true
+      region: "us-central1"
+      bucket: "financial-rag-artifacts"
+
+# Environment-specific overrides
+environments:
+  development:
+    schedules:
+      fintbx_weekly_ingest:
+        schedule: "0 2 * * 1"  # Tuesday instead of Sunday
+        parameters:
+          pages: 50  # Smaller batch for dev
+      
+  production:
+    schedules:
+      fintbx_weekly_ingest:
+        parameters:
+          pages: 1000  # Larger batch for prod
+      
+  staging:
+    schedules:
+      fintbx_weekly_ingest:
+        schedule: "0 2 * * 3"  # Wednesday
+        parameters:
+          pages: 200  # Medium batch for staging

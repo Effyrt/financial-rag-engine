@@ -1,0 +1,13 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.base'
+      - '-t'
+      - 'gcr.io/financial-rag-engine/pdf-processor-base:latest'
+      - '.'
+images:
+  - 'gcr.io/financial-rag-engine/pdf-processor-base:latest'
+timeout: '1800s'
+

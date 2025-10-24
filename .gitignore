@@ -1,0 +1,108 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Data
+data/raw/*.pdf
+data/processed/*.json
+data/processed/*.txt
+data/chroma_db/
+*.csv
+*.xlsx
+
+# Large PDFs and Assignment Documents
+*.pdf
+!docs/**/*.pdf  # Allow PDFs in docs if needed
+
+# Airflow
+airflow/logs/
+airflow/airflow.db
+airflow/airflow.cfg
+airflow/webserver_config.py
+
+# Notebooks
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cloud
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Keys
+*.json.key
+*.pem
+service-account*.json
+
+# Temporary/Planning files
+initial_project_structure.md
+TESTING_GUIDE.md
+ROADMAP.md
+LOCAL_TEST_GUIDE.md
+
+# Virtual environments
+venv/
+venv_composer/
+env/
+.venv/
+
+# Backup files
+*.bak
+*.backup
+*_backup.*
+
+# Cloud deployment files (KEEP - essential for deployment)
+# cloud_run_jobs/ - Essential for Cloud Run
+# orchestration/ - Essential for Airflow DAGs  
+# deploy_*.sh - Essential deployment scripts
+# vertex_ai/ - Essential for Vertex AI integration
+
+# Exclude duplicate pipeline folder (we have main pipeline/ and orchestration/)
+cloud_run_jobs/pipeline/
+
+# Large data files
+data/processed/*.json
+data/processed/*.txt
+data/chroma_db/
+logs/
+
+# Assignment PDFs (too large for git)
+Assignment_3_Project_AURELIA_Final.pdf
+
+# Test files (exclude old test files, keep new ones)
+test_approach.py
+test_components.py
+test_docling_local.py
+test_vertex_ai_real.py
+test_*.sh
+*_test.py
+# Keep test_pipeline.py (our new testing script)
+
+# Runtime files
+*.pid
+*.log
+backend/test.db
+test_query_result.json
+
