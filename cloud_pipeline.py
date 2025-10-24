@@ -136,14 +136,14 @@ class CloudPipelineRunner:
                 raise Exception("Failed to download PDF from Cloud Storage")
             
             # Determine page range
-            if pages == "all" and end_page == 50:  # Process 50 pages when end_page is 50
-                logger.info(f"Processing pages {start_page}-{end_page}")
-            elif pages == "all":
+            logger.info(f"DEBUG: pages='{pages}', end_page={end_page}, type(end_page)={type(end_page)}")
+            if pages == "all" and end_page != 50:  # Process all pages only if end_page is not 50
                 total_pages = self._count_pdf_pages(str(pdf_path))
                 start_page = 1
                 end_page = total_pages
                 logger.info(f"Processing all {total_pages} pages")
             else:
+                # Use the provided start_page and end_page (defaults to 1-50)
                 logger.info(f"Processing pages {start_page}-{end_page}")
             
             # Parse PDF
