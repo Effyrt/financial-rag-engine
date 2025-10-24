@@ -1,0 +1,106 @@
+# Multi-stage build for faster builds
+FROM python:3.11-slim as base
+
+# Install system dependencies in one layer (cached)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libgl1 \
+    libgl1-mesa-dri \
+    libglu1-mesa \
+    libopengl0 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    libgthread-2.0-0 \
+    libglib2.0-dev \
+    libfontconfig1 \
+    libice6 \
+    libx11-6 \
+    libxrandr2 \
+    libxi6 \
+    libxtst6 \
+    libxxf86vm1 \
+    libxinerama1 \
+    libxcursor1 \
+    libxcomposite1 \
+    libasound2 \
+    libatk1.0-0 \
+    libcairo2 \
+    libpango-1.0-0 \
+    libgdk-pixbuf-xlib-2.0-0 \
+    libgtk-3-0 \
+    libnss3 \
+    libnspr4 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create requirements.txt for better caching
+RUN echo "pandas==2.3.3" > requirements.txt && \
+    echo "numpy==2.2.6" >> requirements.txt && \
+    echo "requests==2.32.5" >> requirements.txt && \
+    echo "python-dotenv==1.1.1" >> requirements.txt && \
+    echo "pypdf==6.1.3" >> requirements.txt && \
+    echo "openai==2.6.0" >> requirements.txt && \
+    echo "chromadb==1.2.1" >> requirements.txt && \
+    echo "tqdm==4.67.1" >> requirements.txt && \
+    echo "docling==2.58.0" >> requirements.txt && \
+    echo "docling-core==2.49.0" >> requirements.txt && \
+    echo "langchain==1.0.2" >> requirements.txt && \
+    echo "langchain-text-splitters==1.0.0" >> requirements.txt && \
+    echo "langchain-community==0.4" >> requirements.txt && \
+    echo "google-cloud-storage==3.4.1" >> requirements.txt && \
+    echo "google-cloud-secret-manager==2.25.0" >> requirements.txt
+
+# Install Python dependencies (cached layer)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Pre-download Docling models (cached layer)
+RUN python -c "\
+import os; \
+os.environ['HF_HOME'] = '/app/.cache/huggingface'; \
+os.environ['TRANSFORMERS_CACHE'] = '/app/.cache/huggingface/transformers'; \
+os.environ['HF_DATASETS_CACHE'] = '/app/.cache/huggingface/datasets'; \
+os.environ['HF_HUB_OFFLINE'] = '0'; \
+os.environ['TRANSFORMERS_OFFLINE'] = '0'; \
+print('Downloading Docling models...'); \
+from docling.document_converter import DocumentConverter; \
+converter = DocumentConverter(); \
+print('Docling models downloaded successfully'); \
+print('Models cached in:', os.environ['HF_HOME']); \
+print('Setting up offline mode...'); \
+os.environ['HF_HUB_OFFLINE'] = '1'; \
+os.environ['TRANSFORMERS_OFFLINE'] = '1'; \
+print('Offline mode configured')"
+
+# Final stage - copy only what's needed
+FROM base as final
+
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV GOOGLE_CLOUD_PROJECT=financial-rag-engine
+ENV HF_HOME=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface/transformers
+ENV HF_DATASETS_CACHE=/app/.cache/huggingface/datasets
+
+# Copy application code (changes frequently - last layer)
+COPY cloud_pipeline.py .
+COPY pipeline /app/pipeline
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting PDF Processing Job"\n\
+echo "Project ID: financial-rag-engine"\n\
+echo "Arguments: $@"\n\
+\n\
+python cloud_pipeline.py --pages "1-10" --start 1 --end 10 --project-id financial-rag-engine --bucket-name financial-rag-data\n\
+\n\
+echo "PDF processing job completed!"\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Run the startup script
+ENTRYPOINT ["/app/start.sh"]
