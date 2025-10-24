@@ -76,22 +76,29 @@ fi
 # Create secrets
 print_status "Setting up secrets in Secret Manager"
 
-# Check if OpenAI API key is set
-if [ -z "$OPENAI_API_KEY" ]; then
-    print_warning "OPENAI_API_KEY environment variable not set."
-    echo "Please enter your OpenAI API key:"
-    read -s OPENAI_API_KEY
+# Check if OpenAI API key secret already exists
+if gcloud secrets describe openai-api-key &>/dev/null; then
+    print_status "OpenAI API key secret already exists, skipping creation"
+else
+    # Check if OpenAI API key is set
+    if [ -z "$OPENAI_API_KEY" ]; then
+        print_warning "OPENAI_API_KEY environment variable not set."
+        echo "Please enter your OpenAI API key:"
+        read -s OPENAI_API_KEY
+    fi
+    
+    # Create OpenAI API key secret
+    echo $OPENAI_API_KEY | gcloud secrets create openai-api-key --data-file=-
 fi
-
-# Create OpenAI API key secret
-echo $OPENAI_API_KEY | gcloud secrets create openai-api-key --data-file=- || true
 
 # Build Docker images
 print_status "Building Docker images"
 
 # Build PDF processor image
 print_status "Building PDF processor image"
-gcloud builds submit --tag gcr.io/$PROJECT_ID/pdf-processor . -f cloud_run_jobs/Dockerfile.pdf-processor
+cd cloud_run_jobs
+gcloud builds submit --tag gcr.io/$PROJECT_ID/pdf-processor:optimized .
+cd ..
 
 # Build backend image
 print_status "Building backend image"
@@ -104,17 +111,18 @@ gcloud builds submit --tag gcr.io/$PROJECT_ID/financial-rag-frontend . -f fronte
 # Deploy Cloud Run Jobs
 print_status "Deploying Cloud Run Jobs"
 
-# PDF Processing Job
+# PDF Processing Job (Optimized for 50 pages)
 gcloud run jobs create pdf-processor \
-    --image gcr.io/$PROJECT_ID/pdf-processor \
+    --image gcr.io/$PROJECT_ID/pdf-processor:optimized \
     --region $REGION \
-    --memory 4Gi \
-    --cpu 2 \
+    --memory 8Gi \
+    --cpu 4 \
     --max-retries 3 \
     --parallelism 1 \
     --task-count 1 \
-    --set-env-vars="PROJECT_ID=$PROJECT_ID,BUCKET_NAME=$BUCKET_NAME,PAGES=all" \
-    --service-account="financial-rag-sa@$PROJECT_ID.iam.gserviceaccount.com" || true
+    --timeout 3600 \
+    --set-env-vars="PROJECT_ID=$PROJECT_ID,BUCKET_NAME=$BUCKET_NAME,PAGES=1-50" \
+    --service-account="773470655851-compute@developer.gserviceaccount.com" || true
 
 # Deploy Cloud Run Services
 print_status "Deploying Cloud Run Services"
@@ -161,9 +169,15 @@ echo "  Processed Data: gs://$BUCKET_NAME/processed-data/"
 echo ""
 echo "🚀 Next Steps:"
 echo "  1. Upload fintbx.pdf to gs://$BUCKET_NAME/pdf-files/ if not already done"
-echo "  2. Run PDF processing job:"
+echo "  2. Run PDF processing job (optimized for 50 pages):"
 echo "     gcloud run jobs execute pdf-processor --region=$REGION"
-echo "  3. Access the frontend at: $FRONTEND_URL"
-echo "  4. Test the RAG system with sample queries"
+echo "  3. Monitor job progress:"
+echo "     gcloud logging read \"resource.type=cloud_run_job AND resource.labels.job_name=pdf-processor\" --limit=20 --format=\"table(timestamp,severity,textPayload)\""
+echo "  4. Access the frontend at: $FRONTEND_URL"
+echo "  5. Test the RAG system with sample queries"
 echo ""
-print_warning "Note: The first PDF processing run may take 30-60 minutes for the full 3000-page document."
+print_warning "Optimized Settings:"
+echo "  - Processing: 50 pages only (fast)"
+echo "  - Resources: 4 CPU cores, 8GB RAM"
+echo "  - Timeout: 60 minutes"
+echo "  - Expected time: 5-10 minutes for 50 pages"
