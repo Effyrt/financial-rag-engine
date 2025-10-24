@@ -20,7 +20,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 10s
     networks:
       - aurelia-network
     restart: unless-stopped
@@ -79,7 +79,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: deployment/docker/Dockerfile.api
       args:
         - PYTHON_VERSION=3.11
     container_name: aurelia-api
@@ -106,7 +106,7 @@ services:
       redis:
         condition: service_healthy
       chromadb:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
