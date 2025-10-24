@@ -62,10 +62,43 @@ TESTING_GUIDE.md
 ROADMAP.md
 LOCAL_TEST_GUIDE.md
 
-# Test files
-test_*.py
-*_test.py
+# Virtual environments
+venv/
+venv_composer/
+env/
+.venv/
+
+# Backup files
+*.bak
+*.backup
+*_backup.*
+
+# Cloud deployment files (KEEP - essential for deployment)
+# cloud_run_jobs/ - Essential for Cloud Run
+# orchestration/ - Essential for Airflow DAGs  
+# deploy_*.sh - Essential deployment scripts
+# vertex_ai/ - Essential for Vertex AI integration
+
+# Exclude duplicate pipeline folder (we have main pipeline/ and orchestration/)
+cloud_run_jobs/pipeline/
+
+# Large data files
+data/processed/*.json
+data/processed/*.txt
+data/chroma_db/
+logs/
+
+# Assignment PDFs (too large for git)
+Assignment_3_Project_AURELIA_Final.pdf
+
+# Test files (exclude old test files, keep new ones)
+test_approach.py
+test_components.py
+test_docling_local.py
+test_vertex_ai_real.py
 test_*.sh
+*_test.py
+# Keep test_pipeline.py (our new testing script)
 
 # Runtime files
 *.pid
