@@ -102,6 +102,55 @@ class FintbxIngestDAG:
             logger.error(f"Error uploading artifacts: {e}")
             raise
     
+    def _parse_with_vertex_ai(self, pdf_path: str, start_page: int = 1, end_page: int = None) -> str:
+        """Parse PDF using Vertex AI with GPU acceleration"""
+        try:
+            logger.info("🚀 Step 3: Parsing PDF with Vertex AI (GPU accelerated)")
+            
+            # Trigger Vertex AI custom job for parsing
+            from google.cloud import aiplatform
+            
+            # Initialize Vertex AI
+            aiplatform.init(project=self.project_id, location=self.region)
+            
+            # Create custom job for parsing
+            job = aiplatform.CustomJob(
+                display_name=f"pdf-parsing-{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                worker_pool_specs=[{
+                    "machine_spec": {
+                        "machine_type": "n1-standard-4",
+                        "accelerator_type": "NVIDIA_TESLA_T4",
+                        "accelerator_count": 1,
+                    },
+                    "replica_count": 1,
+                    "container_spec": {
+                        "image_uri": f"gcr.io/{self.project_id}/vertex-ai-parser:latest",
+                        "args": [
+                            "--pdf_path", pdf_path,
+                            "--output_dir", f"gs://{self.bucket_name}/parsed",
+                            "--start_page", str(start_page),
+                            "--end_page", str(end_page) if end_page else "10"
+                        ],
+                    },
+                }]
+            )
+            
+            # Submit and wait for completion
+            logger.info("⏳ Submitting Vertex AI parsing job...")
+            job.submit()
+            job.wait()
+            
+            if job.state.name == "JOB_STATE_SUCCEEDED":
+                logger.info("✅ Vertex AI parsing completed successfully")
+                # Return path to parsed data in GCS
+                return f"gs://{self.bucket_name}/parsed/{os.path.basename(pdf_path)}_parsed_{start_page}-{end_page or 10}.json"
+            else:
+                raise RuntimeError(f"Vertex AI job failed with state: {job.state.name}")
+                
+        except Exception as e:
+            logger.error(f"❌ Vertex AI parsing failed: {e}")
+            raise
+
     def run_pipeline(self, 
                     pdf_path: str = "data/raw/fintbx.pdf",
                     pages: int = None,
@@ -109,7 +158,7 @@ class FintbxIngestDAG:
                     start_page: int = None,
                     end_page: int = None) -> Dict[str, Any]:
         """
-        Run the PDF processing pipeline
+        Run the PDF processing pipeline with Vertex AI parsing
         
         Args:
             pdf_path: Path to PDF in GCS
@@ -118,7 +167,7 @@ class FintbxIngestDAG:
             start_page: Start page for range processing
             end_page: End page for range processing
         """
-        logger.info("🚀 Starting Fintbx Ingest DAG")
+        logger.info("🚀 Starting Fintbx Ingest DAG with Vertex AI")
         logger.info(f"   PDF: {pdf_path}")
         logger.info(f"   Pages: {pages}")
         logger.info(f"   ChromaDB: {use_chromadb}")
@@ -128,30 +177,33 @@ class FintbxIngestDAG:
         run_id = f"ingest_{timestamp}"
         
         try:
-            # Step 1: Download PDF from GCS
-            logger.info("📥 Step 1: Downloading PDF from GCS")
+            # Step 1: Download PDF from GCS (if needed for local processing)
+            logger.info("📥 Step 1: Preparing PDF for processing")
             local_pdf = self._download_pdf_from_gcs(pdf_path)
             
-            # Step 2: Set up environment variables
-            logger.info("🔧 Step 2: Setting up environment")
+            # Step 2: Parse with Vertex AI (GPU accelerated)
+            logger.info("⚡ Step 2: Parsing with Vertex AI")
+            parsed_data_path = self._parse_with_vertex_ai(pdf_path, start_page or 1, end_page or pages)
+            
+            # Step 3: Set up environment variables
+            logger.info("🔧 Step 3: Setting up environment")
             os.environ["OPENAI_API_KEY"] = self._get_secret("OPENAI_API_KEY")
             if not use_chromadb:
                 os.environ["PINECONE_API_KEY"] = self._get_secret("PINECONE_API_KEY")
             
-            # Step 3: Run pipeline
-            logger.info("⚙️ Step 3: Running PDF processing pipeline")
+            # Step 4: Run chunking, embedding, and storage pipeline
+            logger.info("⚙️ Step 4: Running chunking and embedding pipeline")
             
-            # Build pipeline command
+            # Validate parsed data exists
+            if not os.path.exists(parsed_data_path):
+                raise FileNotFoundError(f"Parsed data not found: {parsed_data_path}")
+            
+            # Build pipeline command (now using parsed data)
             cmd = [
                 "python", "run_pipeline.py",
-                "--pdf", local_pdf,
+                "--parsed-data", parsed_data_path,  # Use parsed data instead of raw PDF
                 "--yes"  # Auto-confirm
             ]
-            
-            if pages:
-                cmd.extend(["--pages", str(pages)])
-            elif start_page and end_page:
-                cmd.extend(["--start", str(start_page), "--end", str(end_page)])
             
             if use_chromadb:
                 cmd.append("--use-chromadb")

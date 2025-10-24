@@ -23,8 +23,8 @@ from google.cloud import storage
 from google.cloud import secretmanager
 
 # Local imports
-from pipeline.pdf_parser_docling_fixed import DoclingPDFParserFixed
-from pipeline.chunker_strategies import CodeAwareStrategy
+from pipeline.pdf_parser_vertex_ai import VertexAIPDFParser
+from pipeline.chunker_strategies import CodeAwareStrategy, ChunkingConfig
 from pipeline.embedder import EmbeddingGenerator
 from pipeline.vector_store_chroma import ChromaVectorStore
 
@@ -135,34 +135,44 @@ class CloudPipelineRunner:
             if not self.storage_manager.download_file("pdf-files/fintbx.pdf", str(pdf_path)):
                 raise Exception("Failed to download PDF from Cloud Storage")
             
-            # Determine page range
+            # Determine page range - FIXED LOGIC
+            logger.info(f"DEBUG: pages='{pages}', end_page={end_page}, type(end_page)={type(end_page)}")
             if pages == "all":
+                # Only process all pages if explicitly requested
                 total_pages = self._count_pdf_pages(str(pdf_path))
                 start_page = 1
                 end_page = total_pages
                 logger.info(f"Processing all {total_pages} pages")
             else:
+                # Use the provided start_page and end_page (defaults to 1-50)
                 logger.info(f"Processing pages {start_page}-{end_page}")
             
-            # Parse PDF
-            logger.info("Starting PDF parsing...")
-            parser = DoclingPDFParserFixed(start_page=start_page, max_pages=end_page-start_page+1)
+            # Parse PDF with Vertex AI
+            logger.info("Starting PDF parsing with Vertex AI...")
+            parser = VertexAIPDFParser(project_id=self.project_id, start_page=start_page, max_pages=end_page-start_page+1)
             parsed_data = parser.parse_pdf(str(pdf_path))
+            logger.info("✅ Vertex AI parsing succeeded!")
             
             # Save parsed data
-            parsed_file = temp_path / f"docling_parsed_{start_page}_{end_page}.json"
+            parsed_file = temp_path / f"vertex_ai_parsed_{start_page}_{end_page}.json"
             with open(parsed_file, 'w') as f:
                 json.dump(parsed_data, f, indent=2)
             
             # Upload parsed data
             self.storage_manager.upload_file(
                 str(parsed_file), 
-                f"processed-data/docling_parsed_{start_page}_{end_page}.json"
+                f"processed-data/vertex_ai_parsed_{start_page}_{end_page}.json"
             )
             
             # Chunk the text
             logger.info("Starting text chunking...")
-            chunker = CodeAwareStrategy(chunk_size=1000, chunk_overlap=100)
+            config = ChunkingConfig(
+                name="code_aware",
+                chunk_size=1000,
+                chunk_overlap=100,
+                description="Code-aware chunking for financial documents"
+            )
+            chunker = CodeAwareStrategy(config)
             
             # Process chunks by topic
             chunks_by_topic = {}
@@ -172,7 +182,7 @@ class CloudPipelineRunner:
             topics = parsed_data.get('topics', [])
             
             # Create chunks
-            chunks = chunker.chunk_text(full_text, {'page_range': f"{start_page}-{end_page}"})
+            chunks = chunker.chunk(full_text, {'page_range': f"{start_page}-{end_page}"})
             
             # Organize chunks by topic
             for chunk in chunks:
@@ -192,7 +202,7 @@ class CloudPipelineRunner:
             for topic, topic_chunks in chunks_by_topic.items():
                 for chunk in topic_chunks:
                     chunk['topic'] = topic
-                    chunk['embedding'] = self.embedder.generate_embedding(chunk['chunk_text'])
+                    chunk['embedding'] = self.embedder.generate_embedding(chunk['text'])
                     all_chunks.append(chunk)
             
             # Store in ChromaDB

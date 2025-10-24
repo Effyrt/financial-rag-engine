@@ -7,3 +7,6 @@ openai
 instructor
 chromadb
 tqdm
+google-cloud-documentai
+google-cloud-storage
+google-cloud-secret-manager
