@@ -1,0 +1,13 @@
+{
+  "source": "fintbx.pdf",
+  "parser": "fallback",
+  "timestamp": "1761327738.5217884",
+  "file_size_bytes": 1061947,
+  "status": "parsing_failed",
+  "errors": {
+    "docling_available": false,
+    "docai_available": true,
+    "docai_configured": false
+  },
+  "message": "Unable to parse PDF with available methods"
+}

@@ -2,37 +2,37 @@
   {
     "query": "What is Sharpe Ratio?",
     "found": 5,
-    "avg_score": 1.293704056739807,
-    "best_score": 1.1076867580413818
+    "avg_score": 1.29832022190094,
+    "best_score": 1.117147445678711
   },
   {
     "query": "How to calculate bond duration?",
     "found": 5,
-    "avg_score": 1.2578886985778808,
-    "best_score": 1.1817246675491333
+    "avg_score": 1.265589189529419,
+    "best_score": 1.1924364566802979
   },
   {
     "query": "Explain portfolio optimization",
     "found": 5,
-    "avg_score": 0.9425710439682007,
-    "best_score": 0.8722190856933594
+    "avg_score": 0.9507998108863831,
+    "best_score": 0.9123468995094299
   },
   {
     "query": "What is the Black-Scholes model?",
     "found": 5,
-    "avg_score": 1.2521065473556519,
-    "best_score": 1.1646380424499512
+    "avg_score": 1.253634786605835,
+    "best_score": 1.1645790338516235
   },
   {
     "query": "How to handle dates in MATLAB?",
     "found": 5,
-    "avg_score": 1.1515925407409668,
-    "best_score": 0.9388984441757202
+    "avg_score": 1.1478763818740845,
+    "best_score": 0.9393310546875
   },
   {
     "query": "Matrix operations in Financial Toolbox",
     "found": 5,
-    "avg_score": 0.7528569459915161,
-    "best_score": 0.7076546549797058
+    "avg_score": 0.7719898104667664,
+    "best_score": 0.7149084806442261
   }
 ]
