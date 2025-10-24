@@ -1,0 +1,66 @@
+cat > deployment/monitoring/prometheus.yml << 'ENDFILE'
+# ============================================================================
+# Prometheus Configuration for AURELIA Monitoring
+# ============================================================================
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    cluster: 'aurelia-aws'
+    environment: 'production'
+    project: 'financial-rag'
+
+# Scrape configurations
+scrape_configs:
+  # AURELIA API Metrics
+  - job_name: 'aurelia-api'
+    static_configs:
+      - targets: ['api:9090']
+        labels:
+          service: 'fastapi'
+          component: 'backend'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # PostgreSQL Metrics (if exporter configured)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:9187']
+        labels:
+          service: 'database'
+          component: 'postgresql'
+    scrape_interval: 60s
+
+  # Redis Metrics (if exporter configured)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:9121']
+        labels:
+          service: 'cache'
+          component: 'redis'
+    scrape_interval: 60s
+
+  # ChromaDB Metrics
+  - job_name: 'chromadb'
+    static_configs:
+      - targets: ['chromadb:8000']
+        labels:
+          service: 'vectordb'
+          component: 'chromadb'
+    metrics_path: '/api/v1/heartbeat'
+    scrape_interval: 60s
+
+# Alerting rules (optional - requires Alertmanager)
+# rule_files:
+#   - '/etc/prometheus/rules/*.yml'
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 15d
+      size: 10GB
+ENDFILE
