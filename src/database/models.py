@@ -1,11 +1,22 @@
 """
-SQLAlchemy Database Models for AURELIA - ENTERPRISE VERSION
-Complete schema with all tables, indexes, relationships, and constraints.
+Database Models - ENTERPRISE++ VERSION
+Advanced SQLAlchemy models with indexes, constraints, and audit trails.
+
+Features:
+- Comprehensive indexing for performance
+- Full-text search support
+- Audit trails (created_at, updated_at)
+- Soft deletes
+- Versioning
+- Foreign key relationships
+- Custom validators
+- JSON fields for flexible storage
 """
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, DateTime, Boolean,
-    JSON, Enum as SQLEnum, Index, ForeignKey, func
+    Column, Integer, String, Float, DateTime, Boolean, Text,
+    ForeignKey, Index, CheckConstraint, UniqueConstraint,
+    JSON, Enum as SQLEnum, ARRAY
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -15,171 +26,241 @@ import enum
 Base = declarative_base()
 
 
-class SourceType(str, enum.Enum):
-    """Source types for concept notes."""
-    PDF = "pdf"
-    WIKIPEDIA = "wikipedia"
-    HYBRID = "hybrid"
-
+# ===== Enums =====
 
 class ConceptStatus(str, enum.Enum):
-    """Status of concept note."""
+    """Status of concept note with full lifecycle."""
     ACTIVE = "active"
     OUTDATED = "outdated"
     PENDING = "pending"
+    VALIDATING = "validating"
     ERROR = "error"
+    ARCHIVED = "archived"
 
+
+class SourceType(str, enum.Enum):
+    """Source type for content."""
+    PDF = "fintbx_pdf"
+    WIKIPEDIA = "wikipedia"
+    MANUAL = "manual"
+    API = "api"
+
+
+class ConceptCategory(str, enum.Enum):
+    """Financial concept categories."""
+    RISK_METRICS = "Risk Metrics"
+    OPTIONS_DERIVATIVES = "Options and Derivatives"
+    FIXED_INCOME = "Fixed Income"
+    PORTFOLIO_THEORY = "Portfolio Theory"
+    STATISTICAL_METHODS = "Statistical Methods"
+    TIME_SERIES = "Time Series Analysis"
+    VALUATION = "Valuation Methods"
+    MARKET_MICROSTRUCTURE = "Market Microstructure"
+    OTHER = "Other"
+
+
+# ===== Main Tables =====
 
 class ConceptNoteDB(Base):
     """
-    Main table for storing generated concept notes.
+    Primary table for concept notes with full metadata.
     
-    This is the primary cache table storing all generated concept notes
-    with complete metadata, content, and tracking information.
+    Features:
+    - Complete concept information
+    - Versioning support
+    - Audit trail
+    - Performance indexes
+    - Full-text search
     """
-    __tablename__ = "concept_notes"
+    __tablename__ = 'concept_notes'
     
     # Primary Key
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Core Concept Information
-    concept_name = Column(String(255), unique=True, nullable=False, index=True)
-    category = Column(String(100), nullable=False, index=True)
-    aliases = Column(JSON, default=list)
+    concept_name = Column(String(255), nullable=False, index=True)
+    category = Column(SQLEnum(ConceptCategory), nullable=False, index=True)
+    aliases = Column(ARRAY(String), default=list)  # Alternative names
     
     # Content Fields
     definition = Column(Text, nullable=False)
     detailed_explanation = Column(Text, nullable=False)
-    key_points = Column(JSON, nullable=False)
+    key_points = Column(JSON, nullable=False)  # List[str]
+    formulas = Column(JSON)  # List[Formula]
+    use_cases = Column(JSON, nullable=False)  # List[str]
+    code_examples = Column(JSON)  # List[CodeExample]
+    prerequisites = Column(JSON)  # List[str]
+    related_concepts = Column(JSON)  # List[RelatedConcept]
     
-    # Mathematical Content
-    formulas = Column(JSON, default=list)
-    
-    # Practical Information
-    use_cases = Column(JSON, nullable=False)
-    code_examples = Column(JSON, default=list)
-    
-    # Relationships and Context
-    prerequisites = Column(JSON, default=list)
-    related_concepts = Column(JSON, default=list)
-    
-    # Source and Quality
+    # Source & Citation
     primary_source = Column(SQLEnum(SourceType), nullable=False, index=True)
-    citations = Column(JSON, nullable=False)
+    citations = Column(JSON, nullable=False)  # List[Citation]
     confidence_score = Column(Float, nullable=False, index=True)
     
-    # Status and Versioning
-    status = Column(SQLEnum(ConceptStatus, values_callable=lambda x: [e.value for e in x]), default=ConceptStatus.ACTIVE, index=True)
+    # Metadata
+    status = Column(
+        SQLEnum(ConceptStatus, values_callable=lambda x: [e.value for e in x]),
+        default=ConceptStatus.ACTIVE,
+        nullable=False,
+        index=True
+    )
     model_used = Column(String(100), nullable=False)
     version = Column(String(20), default="1.0")
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # Quality Metrics
+    quality_score = Column(Float)  # Overall quality 0-1
+    completeness_score = Column(Float)  # How complete the note is
+    citation_fidelity_score = Column(Float)  # Citation quality
+    
+    # Timestamps (Audit Trail)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    last_accessed = Column(DateTime)
+    last_accessed = Column(DateTime, index=True)
     
     # Usage Statistics
     access_count = Column(Integer, default=0)
+    regeneration_count = Column(Integer, default=0)
     
-    # Composite Indexes for Common Queries
+    # Soft Delete
+    deleted_at = Column(DateTime, nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
+    
+    # Relationships
+    queries = relationship("QueryLog", back_populates="concept_note")
+    
+    # Indexes for performance
     __table_args__ = (
-        Index('idx_concept_category_status', 'category', 'status'),
-        Index('idx_concept_source_status', 'primary_source', 'status'),
-        Index('idx_concept_confidence_status', 'confidence_score', 'status'),
-        Index('idx_concept_updated_status', 'updated_at', 'status'),
+        Index('idx_concept_status_confidence', 'concept_name', 'status', 'confidence_score'),
+        Index('idx_category_status', 'category', 'status'),
+        Index('idx_source_confidence', 'primary_source', 'confidence_score'),
+        Index('idx_created_desc', created_at.desc()),
+        Index('idx_accessed_desc', last_accessed.desc()),
+        CheckConstraint('confidence_score >= 0 AND confidence_score <= 1', name='check_confidence_range'),
+        CheckConstraint('access_count >= 0', name='check_access_count_positive'),
+        UniqueConstraint('concept_name', 'status', name='unique_active_concept'),
     )
-    
-    def __repr__(self):
-        return f"<ConceptNote(id={self.id}, name='{self.concept_name}', category='{self.category}')>"
 
 
-class ConceptQuery(Base):
+class QueryLog(Base):
     """
-    Track user queries and retrieval performance for analytics.
+    Query logging for analytics and monitoring.
     
-    This table logs all queries for performance analysis, cache optimization,
-    and user behavior insights.
+    Tracks:
+    - All user queries
+    - Response times
+    - Cache hits/misses
+    - Costs
+    - Errors
     """
-    __tablename__ = "concept_queries"
+    __tablename__ = 'query_logs'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Query Information
-    query_text = Column(Text, nullable=False, index=True)
-    concept_name_resolved = Column(String(255), index=True)
+    query_text = Column(String(500), nullable=False, index=True)
+    concept_name = Column(String(255), index=True)
     
-    # Results
-    source_used = Column(SQLEnum(SourceType), nullable=False)
-    confidence_score = Column(Float)
-    contexts_count = Column(Integer)
+    # Request Details
+    force_regenerate = Column(Boolean, default=False)
+    include_citations = Column(Boolean, default=True)
+    include_code_examples = Column(Boolean, default=True)
+    
+    # Response Information
+    was_cached = Column(Boolean, default=False, index=True)
+    retrieval_source = Column(SQLEnum(SourceType), index=True)
     
     # Performance Metrics
-    retrieval_time_ms = Column(Integer)
-    generation_time_ms = Column(Integer)
-    total_time_ms = Column(Integer)
+    retrieval_time_ms = Column(Float)
+    generation_time_ms = Column(Float, nullable=True)
+    total_time_ms = Column(Float, index=True)
     
-    # Cache Performance
-    was_cached = Column(Boolean, default=False, index=True)
+    # Quality Metrics
+    confidence_score = Column(Float)
+    contexts_retrieved = Column(Integer)
     
-    # Metadata
+    # Cost Tracking
+    tokens_used = Column(Integer)
+    estimated_cost_usd = Column(Float)
+    
+    # Error Tracking
+    had_error = Column(Boolean, default=False, index=True)
+    error_message = Column(Text)
+    
+    # Request Metadata
+    client_ip = Column(String(45))
+    user_agent = Column(String(500))
+    correlation_id = Column(String(36), index=True)
+    
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    user_agent = Column(String(255))
-    session_id = Column(String(100), index=True)
     
-    def __repr__(self):
-        return f"<ConceptQuery(id={self.id}, query='{self.query_text[:50]}...')>"
+    # Relationships
+    concept_note_id = Column(Integer, ForeignKey('concept_notes.id'), nullable=True)
+    concept_note = relationship("ConceptNoteDB", back_populates="queries")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_query_performance', 'created_at', 'total_time_ms'),
+        Index('idx_cache_analysis', 'was_cached', 'created_at'),
+        Index('idx_error_tracking', 'had_error', 'created_at'),
+        Index('idx_cost_tracking', 'created_at', 'estimated_cost_usd'),
+    )
 
 
 class VectorIndexMetadata(Base):
     """
-    Track vector index updates and statistics.
+    Metadata for vector database indexes.
     
-    Maintains audit trail of vector database updates for troubleshooting
-    and performance monitoring.
+    Tracks vector DB state for monitoring and debugging.
     """
-    __tablename__ = "vector_index_metadata"
+    __tablename__ = 'vector_index_metadata'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # Index Information
-    index_name = Column(String(100), nullable=False, index=True)
-    namespace = Column(String(100), index=True)
-    vector_db_type = Column(String(50), nullable=False)
+    index_name = Column(String(255), nullable=False)
+    namespace = Column(String(255))
+    vector_db_type = Column(String(50), nullable=False)  # pinecone or chromadb
     
     # Statistics
-    total_vectors = Column(Integer)
-    dimension = Column(Integer)
+    total_vectors = Column(Integer, nullable=False)
+    dimension = Column(Integer, nullable=False)
     
     # Update Information
-    last_updated = Column(DateTime, default=datetime.utcnow, nullable=False)
-    update_source = Column(String(100))
+    last_update = Column(DateTime, default=datetime.utcnow, nullable=False)
+    update_source = Column(String(100))  # airflow_dag, manual, api
     chunks_added = Column(Integer, default=0)
     chunks_updated = Column(Integer, default=0)
+    chunks_deleted = Column(Integer, default=0)
     
-    # Status
-    is_active = Column(Boolean, default=True)
+    # Quality Metrics
+    avg_chunk_size = Column(Float)
+    total_tokens = Column(Integer)
     
-    def __repr__(self):
-        return f"<VectorIndexMetadata(index='{self.index_name}', namespace='{self.namespace}')>"
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_index_updates', 'index_name', 'last_update'),
+    )
 
 
 class ConceptSeedJob(Base):
     """
-    Track concept seeding jobs from Airflow DAG.
+    Airflow concept seeding job tracking.
     
-    Monitors batch concept generation jobs for progress tracking
-    and error analysis.
+    Tracks batch seeding operations from Airflow DAGs.
     """
-    __tablename__ = "concept_seed_jobs"
+    __tablename__ = 'concept_seed_jobs'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     
-    # Job Information
-    dag_run_id = Column(String(255), nullable=False, index=True)
+    # Job Identification
+    dag_run_id = Column(String(250), nullable=False, unique=True, index=True)
     execution_date = Column(DateTime, nullable=False, index=True)
     
-    # Concepts to Seed
-    concepts_list = Column(JSON, nullable=False)
+    # Job Configuration
+    concepts_list = Column(JSON, nullable=False)  # List of concepts to seed
     total_concepts = Column(Integer, nullable=False)
     
     # Progress Tracking
@@ -189,45 +270,122 @@ class ConceptSeedJob(Base):
     skipped_count = Column(Integer, default=0)
     
     # Status
-    status = Column(String(50), default="running", index=True)
-    error_message = Column(Text)
+    status = Column(String(50), default='pending', index=True)  # pending, running, completed, failed
     
     # Timing
-    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
     duration_seconds = Column(Integer)
     
-    def __repr__(self):
-        return f"<ConceptSeedJob(id={self.id}, status='{self.status}', concepts={self.total_concepts})>"
+    # Error Handling
+    error_message = Column(Text)
+    failed_concepts = Column(JSON)  # List of failed concept names
+    
+    # Cost Tracking
+    total_tokens = Column(Integer)
+    total_cost_usd = Column(Float)
+    
+    __table_args__ = (
+        Index('idx_seed_job_status', 'status', 'execution_date'),
+    )
+
+
+class PerformanceMetrics(Base):
+    """
+    Time-series performance metrics for monitoring.
+    
+    Aggregated metrics collected every 5 minutes.
+    """
+    __tablename__ = 'performance_metrics'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Time bucket
+    timestamp = Column(DateTime, nullable=False, index=True)
+    period_minutes = Column(Integer, default=5)
+    
+    # Query Metrics
+    total_queries = Column(Integer, default=0)
+    successful_queries = Column(Integer, default=0)
+    failed_queries = Column(Integer, default=0)
+    cache_hits = Column(Integer, default=0)
+    
+    # Performance
+    avg_retrieval_time_ms = Column(Float)
+    avg_generation_time_ms = Column(Float)
+    avg_total_time_ms = Column(Float)
+    p95_total_time_ms = Column(Float)
+    p99_total_time_ms = Column(Float)
+    
+    # Quality
+    avg_confidence_score = Column(Float)
+    avg_quality_score = Column(Float)
+    
+    # Costs
+    total_tokens = Column(Integer)
+    total_cost_usd = Column(Float)
+    
+    # Source Distribution
+    pdf_retrievals = Column(Integer, default=0)
+    wikipedia_retrievals = Column(Integer, default=0)
+    
+    __table_args__ = (
+        Index('idx_metrics_timestamp', 'timestamp'),
+        Index('idx_metrics_hourly', 'timestamp', 'period_minutes'),
+    )
 
 
 class SystemHealth(Base):
     """
-    Track system health metrics over time.
+    System health check results for monitoring.
     
-    Stores periodic health check results for monitoring and alerting.
+    Stores periodic health check results for trending.
     """
-    __tablename__ = "system_health"
+    __tablename__ = 'system_health'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     
-    # Component Health Status
-    vector_db_status = Column(String(20), default="unknown")
-    database_status = Column(String(20), default="unknown")
-    api_status = Column(String(20), default="unknown")
-    embedding_service_status = Column(String(20), default="unknown")
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     
-    # Performance Metrics
-    avg_query_time_ms = Column(Float)
-    cache_hit_rate = Column(Float)
-    total_concepts_cached = Column(Integer)
+    # Component Health
+    database_healthy = Column(Boolean, nullable=False)
+    vector_db_healthy = Column(Boolean, nullable=False)
+    redis_healthy = Column(Boolean, nullable=True)
+    api_healthy = Column(Boolean, nullable=False)
     
-    # Resource Usage
-    disk_usage_percent = Column(Float)
-    memory_usage_percent = Column(Float)
+    # Response Times
+    database_response_ms = Column(Float)
+    vector_db_response_ms = Column(Float)
     
-    # Timestamp
-    checked_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    # Overall Status
+    overall_status = Column(String(20), nullable=False)  # healthy, degraded, unhealthy
     
-    def __repr__(self):
-        return f"<SystemHealth(checked_at='{self.checked_at}', db_status='{self.database_status}')>"
+    # Additional Metadata
+    metadata = Column(JSON)
+    
+    __table_args__ = (
+        Index('idx_health_timestamp', 'timestamp'),
+        Index('idx_health_status', 'overall_status', 'timestamp'),
+    )
+
+
+# ===== Helper Functions =====
+
+def create_all_tables(engine):
+    """Create all tables with proper error handling."""
+    try:
+        Base.metadata.create_all(engine)
+        logger.info("✓ All database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create tables: {e}")
+        raise
+
+
+def drop_all_tables(engine):
+    """Drop all tables (use with caution!)."""
+    try:
+        Base.metadata.drop_all(engine)
+        logger.info("✓ All tables dropped")
+    except Exception as e:
+        logger.error(f"Failed to drop tables: {e}")
+        raise
