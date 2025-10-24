@@ -1,0 +1,119 @@
+# ============================================================
+# Financial RAG Engine - .gitignore
+# ============================================================
+
+# ==================== Sensitive Files ====================
+# Environment variables and credentials
+.env
+.env.*
+.envrc
+*.key
+.credentials/
+*-key.json
+service-account*.json
+gcp-*.json
+
+# ==================== Python ====================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+*.cover
+
+# ==================== Large Data Files ====================
+# Raw PDF (too large + copyright)
+data/raw/*.pdf
+
+# Vector database (binary files, can be rebuilt)
+data/vectorstore/
+*.db
+*.sqlite3
+*.bin
+
+# Temporary experiment files
+data/experiments/temp_*/
+
+# ==================== Allowed Data Files ====================
+# Allow important JSON results (use ! to force include)
+!data/parsed/chunks_full.json
+!data/parsed/fintbx_docling.json
+!data/experiments/chunking_results.json
+!data/experiments/retrieval_metrics.json
+!data/experiments/retrieval_results.json
+!data/vectorstore_config.json
+!evaluation/evaluation_report.json
+
+# ==================== IDE & Editors ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==================== Logs ====================
+*.log
+logs/
+*.pid
+
+# ==================== Airflow ====================
+airflow.db
+airflow.cfg
+airflow-webserver.pid
+.airflow/
+
+# ==================== Jupyter ====================
+.ipynb_checkpoints/
+*.ipynb
+
+# ==================== Analysis ====================
+table_extraction_analysis.md
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db
+
+# ==================== Cache ====================
+.cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.pytype/

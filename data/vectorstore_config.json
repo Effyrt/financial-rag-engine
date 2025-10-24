@@ -1,0 +1,11 @@
+{
+  "embedding_model": "text-embedding-3-large",
+  "embedding_dimension": 3072,
+  "embedding_provider": "OpenAI",
+  "chunking_strategy": "RecursiveCharacterTextSplitter",
+  "chunk_size": 1000,
+  "chunk_overlap": 200,
+  "total_documents": 122,
+  "unique_pages": 31,
+  "unique_sections": 13
+}
