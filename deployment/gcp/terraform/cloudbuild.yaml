@@ -1,0 +1,99 @@
+# Google Cloud Build Configuration for AURELIA - PRODUCTION GRADE
+
+steps:
+  # Step 1: Build API Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/aurelia-api:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/aurelia-api:latest'
+      - '-f'
+      - 'deployment/docker/Dockerfile.api'
+      - '.'
+    id: 'build-api'
+
+  # Step 2: Build Frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/aurelia-frontend:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/aurelia-frontend:latest'
+      - '-f'
+      - 'deployment/docker/Dockerfile.frontend'
+      - '.'
+    id: 'build-frontend'
+
+  # Step 3: Push API image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/aurelia-api:$COMMIT_SHA']
+    id: 'push-api'
+    waitFor: ['build-api']
+
+  # Step 4: Push Frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/aurelia-frontend:$COMMIT_SHA']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  # Step 5: Deploy API to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'aurelia-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/aurelia-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-secrets'
+      - 'DATABASE_URL=aurelia-db-url:latest,OPENAI_API_KEY=openai-api-key:latest,PINECONE_API_KEY=pinecone-api-key:latest'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '1'
+    id: 'deploy-api'
+    waitFor: ['push-api']
+
+  # Step 6: Deploy Frontend to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'aurelia-frontend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/aurelia-frontend:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--max-instances'
+      - '5'
+    id: 'deploy-frontend'
+    waitFor: ['push-frontend']
+
+# Store images
+images:
+  - 'gcr.io/$PROJECT_ID/aurelia-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/aurelia-api:latest'
+  - 'gcr.io/$PROJECT_ID/aurelia-frontend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/aurelia-frontend:latest'
+
+# Build configuration
+timeout: '1800s'
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
