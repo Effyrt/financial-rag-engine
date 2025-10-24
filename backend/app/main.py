@@ -49,9 +49,24 @@ rag_service = RAGService()
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup."""
-    logger.info("Starting up Financial RAG Engine API...")
-    init_db()
-    logger.info("✅ API ready!")
+    logger.info("🚀 Starting up Financial RAG Engine API...")
+    
+    try:
+        # Initialize database
+        init_db()
+        logger.info("✅ Database initialized")
+        
+        # Test RAG service
+        if rag_service.openai_client and rag_service.collection:
+            logger.info("✅ RAG Service ready")
+        else:
+            logger.warning("⚠️ RAG Service partially initialized")
+        
+        logger.info("✅ API ready!")
+        
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {e}")
+        # Don't fail startup, but log the error
 
 
 @app.get("/")
@@ -70,7 +85,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "financial-rag-api",
-        "pinecone": rag_service.check_pinecone_health(),
+        "chromadb": rag_service.check_chromadb_health(),
         "database": "connected"  # TODO: Add actual DB health check
     }
 
@@ -171,6 +186,69 @@ async def delete_concept(
         raise
     except Exception as e:
         logger.error(f"Error deleting concept: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/seed")
+async def seed_concepts(
+    concepts: List[str],
+    db: Session = Depends(get_db)
+):
+    """
+    Seed the database with predefined financial concepts.
+    
+    Args:
+        concepts: List of concept names to generate and cache
+    """
+    try:
+        logger.info(f"Seeding {len(concepts)} concepts")
+        results = []
+        
+        for concept in concepts:
+            try:
+                # Check if already cached
+                cached = rag_service.get_cached_concept(db, concept)
+                if cached:
+                    results.append({
+                        "concept": concept,
+                        "status": "already_cached",
+                        "source": cached.source
+                    })
+                    continue
+                
+                # Generate concept note
+                concept_note, retrieval_time = rag_service.generate_concept_note(
+                    concept=concept,
+                    top_k=5
+                )
+                
+                # Save to database
+                success = rag_service.save_concept(db, concept_note)
+                
+                results.append({
+                    "concept": concept,
+                    "status": "generated" if success else "failed",
+                    "source": concept_note.source,
+                    "retrieval_time_ms": retrieval_time
+                })
+                
+            except Exception as e:
+                logger.error(f"Error seeding concept '{concept}': {e}")
+                results.append({
+                    "concept": concept,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        return {
+            "message": f"Seeded {len(concepts)} concepts",
+            "results": results,
+            "successful": len([r for r in results if r["status"] in ["generated", "already_cached"]]),
+            "failed": len([r for r in results if r["status"] == "error"])
+        }
+        
+    except Exception as e:
+        logger.error(f"Error seeding concepts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
