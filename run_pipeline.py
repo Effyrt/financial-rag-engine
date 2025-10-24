@@ -78,6 +78,20 @@ def run_pipeline(
         skip_upload: Skip Pinecone upload (for testing embeddings only)
     """
     
+    # Validate inputs
+    if not pdf_path or not Path(pdf_path).exists():
+        raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+    
+    if start_page < 1:
+        raise ValueError("start_page must be >= 1")
+    
+    if end_page and end_page < start_page:
+        raise ValueError("end_page must be >= start_page")
+    
+    # Ensure output directories exist
+    os.makedirs("data/processed", exist_ok=True)
+    os.makedirs("data/chroma_db", exist_ok=True)
+    
     # Determine page range for display
     if end_page is not None:
         page_range = f"pages {start_page}-{end_page}"
