@@ -118,12 +118,18 @@ def display_concept_note(result: Dict[str, Any]):
             st.markdown("🔖 **Cached**")
         elif source == "rag":
             st.markdown("🤖 **Generated**")
-        else:
+        elif source == "Wikipedia":
             st.markdown("📖 **Wikipedia**")
+        else:
+            st.markdown("❓ **Unknown**")
     with col3:
         st.markdown(f"⏱️ {retrieval_time:.0f}ms")
     
     st.markdown("---")
+    
+    # Wikipedia warning
+    if source == "Wikipedia":
+        st.warning("⚠️ **Wikipedia Content**: This concept was not found in the financial textbook database and is generated from general knowledge.")
     
     # Definition
     st.markdown("#### 📖 Definition")
@@ -181,9 +187,9 @@ def main():
             
             # Show stats
             stats = get_stats()
-            if stats and "pinecone" in stats:
-                st.metric("Total Vectors", stats["pinecone"]["total_vectors"])
-                st.metric("Namespaces", len(stats["pinecone"]["namespaces"]))
+            if stats and "chromadb" in stats:
+                st.metric("Total Vectors", stats["chromadb"]["total_vectors"])
+                st.metric("Collection", stats["chromadb"]["collection_name"])
         except:
             st.error("❌ Backend Offline")
         
