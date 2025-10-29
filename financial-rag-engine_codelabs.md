@@ -12,7 +12,7 @@ Prerequisites: Python 3.10+, Google Cloud account, OpenAI API key
 ---
 
 ## Step 1 — Building the PDF Corpus
-We began by constructing a high-quality corpus from the *Financial Toolbox User’s Guide (3,462 pages)*.
+We began by constructing a high-quality corpus from the *Financial Toolbox User’s Guide *.
 
 - **Method:** Used *Google Document AI* combined with *LayoutParser* to parse the PDF.  
   This preserved section hierarchy, figures, equations, and captions in correct reading order.  
