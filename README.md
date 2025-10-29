@@ -24,7 +24,7 @@
 
 ## 📘 Interactive Codelab  
 View the full tutorial here:  
-👉 [Open Google Codelab](https://codelabs-preview.appspot.com/?file_id=11ko5tXIGJr_TRVVRC-zbZVQkAITZNDmhUoh6yS4kXUU#0)
+👉 [Open Google Codelab](https://raw.githubusercontent.com/Effyrt/financial-rag-engine/refs/heads/main/financial-rag-engine_codelabs.md)
 
 ## 🎥 Demo Video
 Watch the complete pipeline in action: [Financial RAG Engine Demo](https://northeastern-my.sharepoint.com/personal/chen_peiyi_northeastern_edu/_layouts/15/stream.aspx?id=%2Fpersonal%2Fchen%5Fpeiyi%5Fnortheastern%5Fedu%2FDocuments%2FRecordings%2FMeeting%20with%20Pei%2DYing%20Chen%2D20251024%5F235257%2DMeeting%20Recording%2Emp4&ga=1&referrer=StreamWebApp%2EWeb&referrerScenario=AddressBarCopied%2Eview%2Eba382f0d%2D6fa2%2D42e4%2D95ab%2D215782ed048d)
