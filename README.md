@@ -1,352 +1,294 @@
-# Financial RAG Engine (AURELIA)
-## Your AI-powered Financial Concept Note Generator
+# Financial RAG Engine
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Gradio](https://img.shields.io/badge/Gradio-FF4B4B?style=for-the-badge&logo=gradio&logoColor=white)](https://gradio.app/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
-[![LangChain](https://img.shields.io/badge/🦜️_LangChain-008080?style=for-the-badge&logo=chainlink&logoColor=white)](https://github.com/langchain-ai/langchain)
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6B6B?style=for-the-badge&logo=vector&logoColor=white)](https://www.trychroma.com/)
-[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com)
-[![Airflow](https://img.shields.io/badge/Apache%20Airflow-017CEE?style=for-the-badge&logo=apache-airflow&logoColor=white)](https://airflow.apache.org/)
-[![Document AI](https://img.shields.io/badge/Document%20AI-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/document-ai)
-[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Instructor](https://img.shields.io/badge/Instructor-FF6B6B?style=for-the-badge&logo=python&logoColor=white)](https://github.com/jxnl/instructor)
+Cloud-deployed Retrieval-Augmented Generation system for financial concept queries, built with Airflow, FastAPI, and Streamlit on GCP.
 
-## Project Overview
-**AURELIA** is a production-grade Retrieval-Augmented Generation (RAG) system designed for automated financial concept note generation. The system processes the Financial Toolbox User's Guide (3,462 pages) using advanced document parsing, intelligent chunking strategies, and semantic search to generate comprehensive, source-attributed concept notes.
+## 🌐 Live Deployment
 
-## Demo and Access
-- **Application URL**: [Deploy to Google Cloud Platform](https://console.cloud.google.com/)
-- **API Documentation**: [FastAPI Docs](http://localhost:8000/docs) (when running locally)
-- **Gradio Interface**: [http://localhost:8501](http://localhost:8501) (when running locally)
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Streamlit Frontend** | https://financial-rag-frontend-387661610307.us-central1.run.app | User interface |
+| **FastAPI Backend** | https://financial-rag-api-387661610307.us-central1.run.app/docs | REST API |
+| **Cloud Storage** | gs://financial-rag-artifacts/ | Data artifacts |
+| **Airflow** | Cloud Composer | Workflow orchestration |
+
+## 🎥 Demo Video
+Watch the complete pipeline in action: [Financial RAG Engine Demo](https://northeastern-my.sharepoint.com/personal/chen_peiyi_northeastern_edu/_layouts/15/stream.aspx?id=%2Fpersonal%2Fchen%5Fpeiyi%5Fnortheastern%5Fedu%2FDocuments%2FRecordings%2FMeeting%20with%20Pei%2DYing%20Chen%2D20251024%5F235257%2DMeeting%20Recording%2Emp4&ga=1&referrer=StreamWebApp%2EWeb&referrerScenario=AddressBarCopied%2Eview%2Eec696149%2Db3b3%2D4ed4%2Da2af%2D7e2f8d041587)
 
 ## 📘 Interactive Codelab  
 View the full tutorial here:  
 👉 [Open Google Codelab](https://codelabs-preview.appspot.com/?file_id=https://raw.githubusercontent.com/Effyrt/financial-rag-engine/main/financial-rag-engine_codelabs.md#0)
 
-## 🎥 Demo Video
-Watch the complete pipeline in action: [Financial RAG Engine Demo](https://northeastern-my.sharepoint.com/personal/chen_peiyi_northeastern_edu/_layouts/15/stream.aspx?id=%2Fpersonal%2Fchen%5Fpeiyi%5Fnortheastern%5Fedu%2FDocuments%2FRecordings%2FMeeting%20with%20Pei%2DYing%20Chen%2D20251024%5F235257%2DMeeting%20Recording%2Emp4&ga=1&referrer=StreamWebApp%2EWeb&referrerScenario=AddressBarCopied%2Eview%2Eba382f0d%2D6fa2%2D42e4%2D95ab%2D215782ed048d)
+## 🏗️ Architecture
 
-### Test with Example Query
-Below is an example query that demonstrates the RAG capabilities of this system:
 ```
-What is the Black-Scholes model and how is it used in option pricing?
+User → Streamlit → FastAPI → ChromaDB (Vector Store)
+                       ↓
+                  PostgreSQL (Cache)
+                       ↓
+                  Wikipedia (Fallback)
+       
+Airflow DAGs → Automated Updates
 ```
-This query will retrieve relevant chunks from the Financial Toolbox documentation and generate a comprehensive concept note with source attribution.
 
-## Key Objectives
-- Create an end-to-end pipeline for processing financial documents
-- Extract structured content from PDF publications using Document AI + LayoutParser
-- Build an intelligent chunking system with 7 different strategies
-- Develop a high-performance vector-based retrieval system
-- Generate automated concept notes with source attribution
-- Deploy as cloud-native microservices for enterprise scalability
+## 📦 Components
 
-## Technical Implementation
+### PDF Processing Pipeline
+**Automated 6-step pipeline** (`pipeline_parse_chunck_vectorstore.py`):
+1. Parse PDF with Docling
+2. Convert to chunks (31 pages)
+3. Experiment with 4 chunking strategies
+4. Build vectorstore with optimal strategy
+5. Evaluate retrieval performance
+6. Upload to GCS
 
-### 1. Document Processing Pipeline
-- **PDF Parsing**: Advanced document parsing using **Document AI + LayoutParser**
-- **Text Extraction**: Intelligent extraction of text, tables, images, and formulas
-- **Structure Preservation**: Maintains document hierarchy and formatting
-- **Metadata Generation**: Automatic page numbers, timestamps, and source attribution
+**Best Strategy:** Medium Chunks (1000 chars, 200 overlap)
+- Precision@3: 0.933
+- MRR: 1.0
+- Total: 122 chunks
 
-### 2. Intelligent Chunking System
-- **7 Chunking Strategies**: From recursive to semantic approaches
-- **Winner Strategy**: `semantic_1200_150` with 81.1% optimal chunks
-- **Quality Metrics**: Automated evaluation and optimization
-- **Semantic Awareness**: Preserves concept boundaries and context
+### Airflow DAGs (Cloud Composer)
+- `fintbx_ingest_dag`: Weekly PDF processing
+- `concept_seed_dag`: On-demand concept seeding
 
-### 3. Vector Database and Search
-- **Embeddings**: High-quality 3072-dimensional vectors using **OpenAI text-embedding-3-large**
-- **Storage**: Persistent vector storage in **ChromaDB**
-- **Search**: Sub-second similarity search with metadata filtering
-- **Scalability**: Enterprise-grade performance and reliability
+### FastAPI Backend (Cloud Run)
+**Endpoints:**
+- `POST /query`: Query concepts with automatic caching
+- `POST /seed`: Batch pre-generate notes
 
-### 4. RAG Service Architecture
-- **Backend**: **FastAPI** service with robust error handling
-- **LLM Integration**: **OpenAI GPT-4** via **LangChain** framework
-- **Structured Output**: **Pydantic** models with **Instructor** validation
-- **Fallback System**: Wikipedia integration for comprehensive coverage
-- **Caching**: PostgreSQL for response caching and performance
+**Features:**
+- ChromaDB vector search
+- Wikipedia fallback
+- PostgreSQL caching
+- Structured JSON responses
 
-### 5. Cloud-Native Deployment
-- **Orchestration**: **Cloud Composer (Airflow)** for workflow management
-- **Processing**: **Cloud Run Jobs** for scalable document processing
-- **Services**: **Cloud Run** for API and frontend hosting
-- **Database**: **Cloud SQL (PostgreSQL)** for data persistence
-- **Storage**: **Cloud Storage** for document and artifact management
+### Streamlit Frontend (Cloud Run)
+**Features:**
+- Concept query interface
+- Cache status indicators
+- Source tracking (textbook vs Wikipedia)
+- Search history
+- PDF section references
+
+### Evaluation & Benchmarking
+**Quality Metrics:**
+- Accuracy: 100%
+- Completeness: 100%
+- Citation Fidelity: 100%
+
+**Performance:**
+- Embedding Cost: $0.0222 (342 chunks)
+- Retrieval Success: 100%
+- Model: text-embedding-3-large 
+
+## 📊 Key Results
+## 🎯 Chosen Strategy: **Medium Chunks**
 
 ---
 
-## Tech Stack Overview
+## 📊 Experimental Results
 
-| Component                    | Tools & Technologies                     |
-|-------------------------------|------------------------------------------|
-| **PDF Parsing**               | Document AI + LayoutParser                        |
-| **Chunking**                  | LangChain (7 strategies), Semantic Chunking |
-| **Embeddings**                | OpenAI text-embedding-3-large (3072-dim) |
-| **Vector Store**              | ChromaDB (persistent, scalable)         |
-| **Orchestration**             | Cloud Composer (Airflow)                 |
-| **Processing**                | Cloud Run Jobs, Document AI + LayoutParser |
-| **Backend**                   | FastAPI, SQLAlchemy, Pydantic           |
-| **Frontend**                  | Gradio                                  |
-| **Database**                  | Cloud SQL (PostgreSQL)                  |
-| **Deployment**                | Docker, Google Cloud Platform           |
-| **Structured Output**         | Instructor, Pydantic validation        |
+### Strategy Comparison
 
-## Architecture
+| Strategy | Chunks | Precision@3 | Recall@3 | MRR | Avg Time |
+|----------|--------|-------------|----------|-----|----------|
+| Small (500) | 225 | 0.867 | 1.30 | 1.00 | 0.76s |
+| **Medium (1000)** | **118** | **0.933** | **1.40** | **1.00** | **0.56s** |
+| Large (2000) | 65 | 0.933 | 1.40 | 0.90 | 0.95s |
+| Paragraph | 115 | 0.933 | 1.40 | 1.00 | 0.32s |
 
-![Financial RAG Engine Architecture](docs/architecture/Architecture.png)
+**Testing**: 5 queries evaluated across 4 strategies using text-embedding-3-large
 
-### Application Workflow
-```mermaid
-sequenceDiagram
-    participant User
-    participant Gradio as Gradio Frontend
-    participant FastAPI as FastAPI Backend
-    participant RAG as RAG Engine
-    participant ChromaDB as ChromaDB Vector Store
-    participant OpenAI as OpenAI GPT-4
-    participant Wikipedia as Wikipedia API
-    
-    User->>Gradio: Enter financial concept query
-    Gradio->>FastAPI: Forward query
-    FastAPI->>RAG: Process query
-    RAG->>ChromaDB: Retrieve relevant vectors
-    ChromaDB-->>RAG: Return context chunks
-    
-    alt Sufficient context found
-        RAG->>OpenAI: Generate concept note with context
-        OpenAI-->>RAG: Return structured response
-    else Insufficient context
-        RAG->>Wikipedia: Query Wikipedia API
-        Wikipedia-->>RAG: Return Wikipedia content
-        RAG->>OpenAI: Generate concept note with Wikipedia
-        OpenAI-->>RAG: Return structured response
-    end
-    
-    RAG->>RAG: Validate with Instructor
-    RAG-->>FastAPI: Format response with sources
-    FastAPI-->>Gradio: Return concept note
-    Gradio-->>User: Display formatted result
+---
+
+## 💡 Justification
+
+### Quantitative Evidence
+
+**1. Highest Precision (93.3%)**
+- 6.6% better than Small Chunks (86.7%)
+- 93 out of 100 retrieved results are relevant
+- Minimizes noise in search results
+
+**2. Best Recall (1.40)**
+- Retrieves all relevant documents plus additional context
+- Tied for highest with Large and Paragraph strategies
+- Ensures comprehensive information coverage
+
+**3. Perfect MRR (1.0)**
+- Most relevant document always ranks first
+- Outperforms Large Chunks (MRR = 0.9)
+- Critical for user experience
+
+**4. Optimal Speed (0.56s)**
+- 26% faster than Small (0.76s)
+- 41% faster than Large (0.95s)
+- Acceptable for real-time applications
+
+**5. Balanced Chunk Count (118)**
+- Not over-fragmented (vs 225 for Small)
+- Not too coarse (vs 65 for Large)
+- Optimal for processing efficiency
+
+---
+
+## 📖 Concrete Examples
+
+### Example 1: Product Overview Query
+
+**Query**: "What is Financial Toolbox?"
+
+**Medium Chunks Result**:
+```
+[1] Similarity: 0.572 | Page 28 | Product Description
+    "Financial Toolbox Product Description
+     Analyze financial data and develop financial models
+     Financial Toolbox provides functions for mathematical modeling
+     and statistical analysis of financial data..."
 ```
 
-## Project Structure
+**Why Medium Works**:
+- Complete product description in one chunk
+- 791 chars average provides sufficient context
+- Not fragmented like Small (would split across 2-3 chunks)
+- Not diluted like Large (would mix with installation info)
+
+---
+
+### Example 2: Technical Implementation
+
+**Query**: "Matrix operations"
+
+**Medium Chunks Result**:
+```
+[1] Similarity: 0.051 | Page 33 | Matrix Algebra 💻
+    "Matrix Algebra Refresher
+     
+     Introduction
+     The explanations use MATLAB matrix operations.
+     
+     Adding and Subtracting Matrices
+     Matrix addition operates element-by-element:
+     A = [1 2; 3 4];
+     B = [5 6; 7 8];
+     C = A + B..."
+```
+
+**Why Medium Works**:
+- Preserves complete code examples (intro + code + explanation)
+- 1000 chars captures full instructional flow
+- Code blocks remain intact and executable
+- Not split mid-example like Small Chunks
+
+---
+
+### Example 3: Domain Concept
+
+**Query**: "Portfolio optimization"
+
+**Medium Chunks Result**:
+```
+[1] Similarity: 0.163 | Page 7 | Analyzing Portfolios 📊
+    "Analyzing Portfolios
+     - Portfolio Optimization Against a Benchmark
+     - Obtaining Efficient Portfolios for Target Risks
+     - Mean-Variance Portfolio Optimization
+     [Table: Related functions and page references]"
+```
+
+**Why Medium Works**:
+- Groups related concepts together
+- Table of contents stays with section header
+- Maintains logical document structure
+- Links subsections appropriately
+
+---
+
+## 🔬 Comparison with Alternatives
+
+### vs. Small Chunks (500)
+```diff
++ Precision: 93.3% vs 86.7% (+6.6%)
++ Recall: 1.40 vs 1.30 (+7.7%)
++ Speed: 0.56s vs 0.76s (26% faster)
++ Fewer chunks: 118 vs 225 (48% reduction)
+- MRR: 1.00 (tied)
+```
+**Verdict**: Medium significantly outperforms Small
+
+### vs. Large Chunks (2000)
+```diff
++ MRR: 1.00 vs 0.90 (better ranking)
++ Speed: 0.56s vs 0.95s (41% faster)
++ More granular: 118 vs 65 chunks
+- Precision: 93.3% (tied)
+- Recall: 1.40 (tied)
+```
+**Verdict**: Medium provides better ranking and speed
+
+### vs. Paragraph-focused
+```diff
+- Speed: 0.56s vs 0.32s (Paragraph faster)
++ More predictable chunk sizes
++ Better for production consistency
+- Precision: 93.3% (tied)
+- Recall: 1.40 (tied)
+- MRR: 1.00 (tied)
+```
+**Verdict**: Medium chosen for predictability; Paragraph is valid alternative
+
+### Chunking Strategy Comparison
+
+| Strategy | Size | Chunks | Precision@3 | MRR | Selected |
+|----------|------|--------|-------------|-----|----------|
+| Small | 500 | 225 | 0.867 | 1.0 | ❌ |
+| **Medium** | **1000** | **118** | **0.933** | **1.0** | **✅** |
+| Large | 2000 | 65 | 0.933 | 0.9 | ❌ |
+| Paragraph | 1000 | 116 | 0.867 | 1.0 | ❌ |
+
+**Selection Rationale:** Strategy 2 achieves highest precision (0.933) with perfect MRR (1.0), providing optimal balance between accuracy and context preservation.
+
+## 📁 Project Structure
+
 ```
 financial-rag-engine/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                 # FastAPI application
-│   │   ├── services/
-│   │   │   └── rag_service.py      # RAG service implementation
-│   │   ├── models/
-│   │   │   └── concept.py          # Pydantic models
-│   │   └── core/
-│   │       └── database.py         # Database configuration
-│   ├── Dockerfile                  # Backend container
-│   └── requirements.txt
-├── frontend/
-│   ├── app.py                      # Streamlit interface
-│   ├── gradio_app.py              # Gradio interface
-│   ├── components/                # UI components
-│   ├── utils/                     # Frontend utilities
-│   ├── Dockerfile                 # Frontend container
-│   └── requirements.txt
-├── pipeline/
-│   ├── chunker_strategies.py       # 7 chunking strategies
-│   ├── chunker_matlab_aware.py    # MATLAB-aware chunking
-│   ├── embedder.py                # Embedding generation
-│   ├── pdf_parser_document_ai.py   # Document AI + LayoutParser PDF parser
-│   └── vector_store_chroma.py     # ChromaDB integration
-├── cloud_run_jobs/
-│   ├── cloud_pipeline.py          # Cloud processing pipeline
-│   ├── fintbx_ingest_dag.py       # PDF ingestion DAG
-│   ├── concept_seed_dag.py        # Concept seeding DAG
-│   ├── Dockerfile                 # Cloud Run container
-│   ├── Dockerfile.base            # Base image
-│   ├── Dockerfile.fast            # Fast build
-│   ├── Dockerfile.optimized       # Optimized build
-│   ├── cloudbuild-base.yaml      # Cloud Build config
-│   └── requirements.txt
-├── orchestration/
-│   └── dags/
-│       └── working_financial_rag_pipeline.py  # Airflow DAG
-├── document_ai/
-│   ├── Dockerfile                 # Document AI container
-│   ├── Dockerfile.document_ai     # Document AI specific
-│   └── parsing/                   # Document AI + LayoutParser PDF parsing
-│       ├── parse_pdf.py
-│       └── parse_pdf_document_ai.py
-├── docs/
-│   ├── ARCHITECTURE_OVERVIEW.md    # Complete architecture
-│   ├── CHUNKING_EVALUATION_RESULTS.md  # Strategy evaluation
-│   ├── CHUNKING_STRATEGIES.md     # Chunking documentation
-│   └── ARCHITECTURE_DIAGRAM.md    # Mermaid diagrams
+├── pipeline_parse_chunck_vectorstore.py  # Automated pipeline
+├── src/
+│   ├── parser/              # PDF parsing
+│   ├── embeddings/          # Vectorstore building
+│   └── experiments/         # Chunking & evaluation
+├── dags/                    # Airflow DAGs
+├── fastapi_rag_service/     # Backend API
+├── streamlit-app/           # Frontend UI
 ├── data/
-│   ├── concept_lists/             # Financial concept definitions
-│   ├── processed/                 # Processed data files
-│   └── raw/                       # Raw data storage
-├── database/
-│   ├── migrations/                # Database migrations
-│   └── schema.sql                 # Database schema
-├── deploy_*.sh                    # Deployment scripts
-├── requirements.txt               # Python dependencies
-├── requirements_composer.txt      # Cloud Composer dependencies
-├── SETUP_GUIDE.md                # Setup instructions
-├── CLOUD_DEPLOYMENT_GUIDE.md     # Cloud deployment guide
-├── GOOGLE_CLOUD_SETUP.md         # GCP setup guide
-└── ROADMAP.md                     # Project roadmap
+│   ├── parsed/              # Processing results
+│   ├── experiments/         # Experiment results
+│   ├── evaluation/          # Benchmark results
+│   └── vectorstore/         # ChromaDB database
+└── upload_to_gcs.py         # GCS upload utility
 ```
 
-## Setup Instructions
+## 🔧 Prerequisites
 
-### Prerequisites
-- Python 3.10+
-- Google Cloud Platform account
-- Docker and Docker Compose
-- OpenAI API key
-
-### Local Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/financial-rag-engine.git
-   cd financial-rag-engine
-   ```
-
-2. **Environment Configuration**
-   Create a `.env` file in the root directory:
-   ```bash
-   # OpenAI Configuration
-   OPENAI_API_KEY=your_openai_api_key_here
-   
-   # Database Configuration
-   DATABASE_URL=sqlite:///./data/financial_rag.db
-   
-   # ChromaDB Configuration
-   CHROMA_DB_PATH=./data/chroma_db
-   CHROMA_COLLECTION_NAME=financial_concepts
-   
-   # Embedding Configuration
-   EMBEDDING_MODEL=text-embedding-3-large
-   EMBEDDING_DIMENSION=3072
-   ```
-
-3. **Install Dependencies**
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
 
-   # Install dependencies
-pip install -r requirements.txt
+# Environment variables (.env)
+OPENAI_API_KEY=your-key
+GOOGLE_APPLICATION_CREDENTIALS=.credentials/gcp-key.json
+
+
 ```
 
-4. **Initialize the System**
-```bash
-   # Test system components
-   python -c "from backend.app.services.rag_service import RAGService; print('✅ RAG Service ready')"
-   
-   # Run small test (5 pages)
-   python run_pipeline.py --pages 5
-   ```
+## 📈 Technologies
 
-5. **Start the Services**
-   ```bash
-   # Start FastAPI backend
-   cd backend
-   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-   
-   # Start Streamlit frontend (in another terminal)
-   cd frontend
-   streamlit run app.py
-   ```
+- **PDF Parsing**: Docling
+- **Chunking**: LangChain RecursiveCharacterTextSplitter
+- **Embeddings**: OpenAI text-embedding-3-large 
+- **Vector Store**: ChromaDB
+- **Orchestration**: Apache Airflow (Cloud Composer)
+- **Backend**: FastAPI
+- **Frontend**: Streamlit
+- **Cloud**: GCP (Cloud Run, Cloud Composer, Cloud Storage)
 
-### Cloud Deployment
 
-1. **Deploy to Google Cloud Platform**
-   ```bash
-   # Deploy Cloud Run jobs
-   ./deploy_to_cloud.sh
-   
-   # Deploy Airflow DAGs
-   ./deploy_composer_pipeline.sh
-   
-   # Deploy integrated pipeline
-   ./deploy_integrated_pipeline.sh
-   ```
 
-2. **Run the Pipeline**
-   ```bash
-   # Process first 50 pages
-   python run_pipeline.py --pages 50
-   
-   # Process full document (3,462 pages)
-   python run_pipeline.py --pages all
-   ```
-
-## Performance Metrics
-
-| **Metric** | **Value** | **Description** |
-|------------|-----------|-----------------|
-| **Processing Speed** | 0.5-1.0 sec/page | Document AI parsing |
-| **Chunking Quality** | 81.1% optimal | semantic_1200_150 strategy |
-| **Retrieval Latency** | <100ms | Vector similarity search |
-| **Response Time** | <10 seconds | End-to-end RAG generation |
-| **Accuracy** | High | Source-attributed responses |
-
-## Key Features
-
-### 🧠 Intelligent Document Processing
-- **Multi-modal extraction**: Text, tables, images, formulas
-- **Structure preservation**: Headings, sections, hierarchy
-- **Metadata extraction**: Page numbers, timestamps, sources
-
-### 🔍 Advanced Chunking System
-- **7 strategies**: From recursive to semantic approaches
-- **Automatic optimization**: Best strategy selection
-- **Quality metrics**: 81.1% optimal chunk percentage
-- **Semantic awareness**: Preserves concept boundaries
-
-### ⚡ High-Performance Vector Search
-- **3072-dimensional embeddings**: OpenAI's latest model
-- **Sub-second retrieval**: Optimized similarity search
-- **Metadata filtering**: Context-aware results
-- **Scalable storage**: ChromaDB with persistence
-
-### 🎯 Production-Grade RAG
-- **Structured output**: Pydantic models for consistency
-- **Source attribution**: Traceability to original content
-- **Wikipedia fallback**: Comprehensive coverage
-- **Quality validation**: Instructor integration
-
-### 🌐 Multi-Interface Support
-- **Streamlit**: Primary web interface
-- **Gradio**: Alternative UI with chat
-- **REST API**: Programmatic access
-- **Real-time**: Live query processing
-
-## Future Improvements
-- Add support for more document types beyond PDFs
-- Implement document versioning and change tracking
-- Enhance multimodal understanding with custom vision models
-- Add user authentication and document-level access control
-- Improve answer generation with fact-checking mechanisms
-- Implement real-time document updates and synchronization
-
-## References
-- [Document AI Documentation](https://cloud.google.com/document-ai/docs)
-- [LayoutParser Documentation](https://github.com/Layout-Parser/layout-parser)
-- [ChromaDB Documentation](https://docs.trychroma.com/)
-- [OpenAI API Documentation](https://platform.openai.com/docs/)
-- [LangChain Documentation](https://python.langchain.com/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Gradio Documentation](https://gradio.app/docs)
-- [Google Cloud Documentation](https://cloud.google.com/docs)
-- [Airflow Documentation](https://airflow.apache.org/docs/)
-
----
-
-*This project represents a complete, production-ready RAG system designed for automated financial concept note generation with enterprise-grade performance, scalability, and reliability.*
+>>>>>>> f092f74ad9fe531cccd2aee5ce897fcfddc11d8f
